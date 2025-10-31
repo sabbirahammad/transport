@@ -265,7 +265,7 @@ console.log(productId)
       setIsSubmitting(false);
     }
   };
-
+console.log(stateCustomer)
   const handleCancel = () => {
     setFormData({});
     setErrors({});
@@ -319,7 +319,7 @@ console.log(productId)
           </div>
           <div className="space-y-3">
             <Link
-              to={`/customer/${stateCustomerId}/trips`}
+              to={`/customer/${productId}/trips`}
               className="w-full block text-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Back to Trip List

@@ -7,24 +7,38 @@ import {
 import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 
 export default function AddTrip() {
-  const { productId } = useParams();
-  const location = useLocation();
-  const navigate = useNavigate();
+    const { customerId: paramCustomerId, productId } = useParams();
+    const location = useLocation();
+    const navigate = useNavigate();
+   const [customerId, setCustomerId] = useState(null);
+   const [formData, setFormData] = useState({});
+   const [selectedFields, setSelectedFields] = useState([]);
+   const [loading, setLoading] = useState(true);
+   const [errors, setErrors] = useState({});
+   const [isSubmitting, setIsSubmitting] = useState(false);
+   const [isSuccess, setIsSuccess] = useState(false);
 
-  const [formData, setFormData] = useState({});
-  const [selectedFields, setSelectedFields] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+   // Get data from navigation state
+   const stateProductName = location.state?.productName;
+   const stateCustomer = location.state?.selectedCustomer;
+   const stateCustomerId = location.state?.customerId;
 
-  // Get data from navigation state
-  const stateProductName = location.state?.productName;
-  const stateCustomer = location.state?.selectedCustomer;
-  const stateCustomerId = location.state?.customerId;
+  // Set customerId state when component mounts or location state changes
+  useEffect(() => {
+    // Try multiple sources for customerId: navigation state first, then URL params
+    const customerIdToUse = stateCustomerId || stateCustomer?.id || paramCustomerId;
+
+    if (customerIdToUse) {
+      setCustomerId(customerIdToUse);
+      console.log('Customer ID set from navigation state or URL params:', customerIdToUse);
+    } else {
+      console.warn('No customer ID found in navigation state or URL params');
+    }
+  }, [stateCustomerId, stateCustomer, paramCustomerId]);
 
   const API_BASE_URL = 'http://192.168.0.106:8080/api/v1';
 console.log(productId)
+console.log(stateCustomerId)
   // All possible fields definition (matching CustomTripList)
   const allFields = [
     { key: 'id', label: 'ID' },
@@ -71,6 +85,7 @@ console.log(productId)
   // Fetch selected fields when component mounts
   useEffect(() => {
     const fetchSelectedFields = async () => {
+
       try {
         setLoading(true);
         const response = await fetch(`${API_BASE_URL}/products/${productId}/trip-fields`);
@@ -249,8 +264,10 @@ console.log(productId)
           state: {
             successMessage: 'Trip added successfully!',
             selectedCustomer: stateCustomer,
+            customerId:customerId,
             productId: productId,
-            productName: stateProductName
+            productName: stateProductName,
+            
           }
         });
       }, 2000);
@@ -270,7 +287,7 @@ console.log(stateCustomer)
     setFormData({});
     setErrors({});
   };
-
+console.log(customerId)
   const getIconForField = (fieldKey) => {
     if (fieldKey.includes('amount') || fieldKey.includes('rate') || fieldKey.includes('cost') || fieldKey.includes('advance') || fieldKey.includes('due') || fieldKey.includes('total') || fieldKey.includes('profit') || fieldKey.includes('cash') || fieldKey.includes('fuel') || fieldKey.includes('unitPrice')) {
       return <DollarSign className="inline w-4 h-4 mr-1" />;

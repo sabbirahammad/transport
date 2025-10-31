@@ -970,9 +970,10 @@ export default function CustomTripList({  }) {
         const stateProductName = location.state?.productName;
         const stateSelectedCustomer = location.state?.selectedCustomer;
         const stateSuccessMessage = location.state?.successMessage;
+        const stateCustomerId = location.state?.customerId;
 
-        // Determine customer ID to use (prioritize state, fallback to params)
-        const customerIdToUse = stateSelectedCustomer ? stateSelectedCustomer.id : id;
+        // Determine customer ID to use (prioritize state.customerId, then state.selectedCustomer.id, fallback to params)
+        const customerIdToUse = stateCustomerId || (stateSelectedCustomer ? stateSelectedCustomer.id : null) || id;
 
         setCustomerId(customerIdToUse);
 
@@ -1389,7 +1390,7 @@ export default function CustomTripList({  }) {
   const handlePrint = () => {
     window.print();
   };
-
+console.log(customerId)
   // Reset page on filter change
   useEffect(() => {
     setCurrentPage(1);
@@ -1523,7 +1524,7 @@ export default function CustomTripList({  }) {
                       productId: productId,
                       productName: productName,
                       selectedCustomer: customer,
-                      customerId: customer?.id
+                      customerId: customerId
                     }
                   })}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -1532,7 +1533,14 @@ export default function CustomTripList({  }) {
                   Add Trip
                 </button>
                 <button
-                  onClick={() => navigate(`/customer/${productId}/bill`)}
+                  onClick={() => navigate(`/customer/${productId}/bill`,{
+                        state: {
+                      productId: productId,
+                      productName: productName,
+                      selectedCustomer: customer,
+                      customerId: customerId
+                    }
+                  })}
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
                 >
                   <ArrowLeft size={18} />

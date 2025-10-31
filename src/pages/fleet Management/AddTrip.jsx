@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Save, X, Plus } from 'lucide-react';
 
 export default function AddTrip() {
-  const navigate = useNavigate();
+   const navigate = useNavigate();
+   const { customerId } = useParams();
+   const location = useLocation();
+   const [customerIdState, setCustomerIdState] = useState(null);
 
   const [formData, setFormData] = useState({
     // Basic fields
@@ -38,7 +41,22 @@ export default function AddTrip() {
   });
 
   const [errors, setErrors] = useState({});
+  // useEffect to read incoming customerId via navigation state, props, or URL params
+  useEffect(() => {
+    const customerIdFromState = location.state?.customerId;
+    const customerIdFromParams = customerId;
 
+    const customerIdToUse = customerIdFromState || customerIdFromParams;
+
+    if (customerIdToUse) {
+      setCustomerIdState(customerIdToUse);
+      console.log('Customer ID set:', customerIdToUse);
+    } else {
+      console.log('No customer ID found');
+    }
+  }, [location.state, customerId]);
+console.log(customerIdState)
+console.log(customerId)
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({

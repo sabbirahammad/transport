@@ -40,6 +40,7 @@ export default function CustomBillList() {
   const [showBillRecordModal, setShowBillRecordModal] = useState(false);
   const [editingBill, setEditingBill] = useState(null);
   const [viewingBill, setViewingBill] = useState(null);
+  const [customerId, setcustomerId] = useState()
 
   const itemsPerPage = 10;
   const printRef = useRef();
@@ -76,10 +77,12 @@ export default function CustomBillList() {
       const stateProductId = location.state?.productId;
       const stateProductName = location.state?.productName;
       const stateSelectedCustomer = location.state?.selectedCustomer;
+      const stateCustomerId = location.state?.customerId;
 
       if (stateProductId) setProductId(stateProductId);
       if (stateProductName) setProductName(stateProductName);
       if (stateSelectedCustomer) setCustomer(stateSelectedCustomer);
+      if (stateCustomerId) setcustomerId(stateCustomerId);
 
       if (!id) {
         setError('Product ID is required');
@@ -122,7 +125,7 @@ export default function CustomBillList() {
       setLoading(false);
     }
   };
-
+console.log(customerId)
   // Fetch bill fields for the product
   const fetchBillFields = async () => {
     try {

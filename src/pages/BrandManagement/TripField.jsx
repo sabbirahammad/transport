@@ -752,7 +752,7 @@ console.log(chack)
       { key: 'updatedAt', label: 'Updated At', type: 'string' }
     ]
   };
-
+console.log(id)
   const handleCheckboxChange = (field) => {
     setSelectedFields(prev =>
       prev.includes(field) ? prev.filter(f => f !== field) : [...prev, field]
@@ -799,7 +799,6 @@ console.log(chack)
         console.error('PUT request failed:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
       setSuccessMessage('Trip fields saved successfully!');
       setTimeout(() => {
         // ✅ Navigate to trips page with customerId (since URL expects customerId)

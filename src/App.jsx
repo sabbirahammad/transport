@@ -49,8 +49,11 @@ import TripField from './pages/BrandManagement/TripField'
 import BillFieldSelector from './pages/BrandManagement/BillField'
 import CustomTripList from './pages/BrandManagement/CustomTripList'
 import CustomBillList from './pages/BrandManagement/CustomBillList'
+import { useParams } from 'react-router-dom'
 
 import Customer from './components/Customer'
+import CustomBillRecord from './pages/BrandManagement/CustomBillRecord'
+import AddCustomTrip from './pages/BrandManagement/AddTrip'
 
 function App() {
   return (
@@ -113,9 +116,12 @@ function App() {
           <Route path='/customer/:id/bill-field' element={<BillFieldSelector />} />
           <Route path='/customer/:id/bill' element={<CustomBillList />} />
           <Route path='/customer/:id/trips' element={<CustomTripList />} />
+          <Route path='/customer/:id/trips/:id' element={<CustomTripList />} />
           <Route path='/custom-bill-list' element={<CustomBillList/>}/>
           <Route path='/customer/:id' element={<Customer />} />
           <Route path='/customer/:id/:name' element={<Customer />} />
+          <Route path='/customer/:id/custombillrecord' element={<CustomBillRecord/>}/>
+          <Route path='/add-trip/:productId' element={<AddCustomTrip/>}/>
         </Route>
       </Routes>
     </BrowserRouter>

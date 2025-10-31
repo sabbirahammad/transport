@@ -1,484 +1,300 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  Search, Plus, Filter, Download,
-  Edit2, Trash2, Eye, AlertCircle,
-  ChevronLeft, ChevronRight, X, TrendingUp, DollarSign, FileText, Printer, Loader2, ArrowLeft
-} from 'lucide-react';
-import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import React, { useState, useEffect } from 'react';
+import { User, Truck, MapPin, DollarSign, Search, X, CheckCircle, Loader2, AlertCircle, Package, FileText, Calendar } from 'lucide-react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
+// API base URL
+const API_BASE_URL = 'http://192.168.0.106:8080/api/v1';
 
-export default function CustomBillList() {
-  const { id } = useParams();
+export default function BillField() {
+  const { id } = useParams(); // This is customerId from URL
   const location = useLocation();
-  const navigate = useNavigate();
-  
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [productName, setProductName] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [selectedFields, setSelectedFields] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedItems, setSelectedItems] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [viewingItem, setViewingItem] = useState(null);
-  const [tripData, setTripData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedFields, setSelectedFields] = useState([]);
-  const [loadingFields, setLoadingFields] = useState(true);
-  const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const itemsPerPage = 10;
-  const printRef = useRef();
-  
-  const customerId = location.state?.customerId || id;
+  const [saving, setSaving] = useState(false);
+  const [fieldDefinitions, setFieldDefinitions] = useState({});
+  const [productId, setProductId] = useState(null);
+  const [chack, setchack] = useState()
+  const navigate = useNavigate();
 
-  // Fetch field selections on component mount
+  // Fetch field selections on mount
   useEffect(() => {
-    const fetchFieldSelections = async () => {
+    const init = async () => {
+      setLoading(true);
+      setError(null);
+
       try {
-        setLoadingFields(true);
-        console.log('Fetching field selections for customer:', customerId);
-        
-        const response = customerId
-          ? await api.getBillFieldSelections(customerId)
-          : await api.getBillFieldSelections();
-          
-        console.log('Bill field selections response:', response);
-        if (response.data.length > 0) {
-          const latestSelection = response.data[response.data.length - 1];
-          const savedFields = latestSelection.selectedFields;
-          console.log('Saved fields:', savedFields);
-          setSelectedFields(savedFields);
-        } else {
-          console.log('No bill field selections found');
-          setSelectedFields([]);
+        // ✅ PRIORITIZE location.state for productId, productName, selectedCustomer, and successMessage
+        const state = location.state;
+        let currentProductId = null;
+        let currentProductName = '';
+        let currentSelectedCustomer = null;
+        let currentSuccessMessage = '';
+
+        if (state) {
+          currentProductId = state.productId || null;
+          currentProductName = state.productName || '';
+          currentSelectedCustomer = state.selectedCustomer || null;
+          currentSuccessMessage = state.successMessage || '';
+
+          // Set state immediately
+          setProductId(currentProductId);
+          setProductName(currentProductName);
+          setSelectedCustomer(currentSelectedCustomer);
+          setSuccessMessage(currentSuccessMessage);
+        }
+
+        // 1. Get customer (for display) - only if not already set from state
+        if (id && !currentSelectedCustomer) {
+          try {
+            // Use singular endpoint /customer (not /customers)
+            const customerRes = await fetch(`${API_BASE_URL}/products/${productId}`);
+            if (customerRes.ok) {
+              const customerData = await customerRes.json();
+              currentSelectedCustomer = {
+                id: customerData.id,
+                name: customerData.customerName || customerData.name || 'Unknown',
+                address: customerData.address || ''
+              };
+              setSelectedCustomer(currentSelectedCustomer);
+            }
+          } catch (err) {
+            console.error('Customer fetch failed:', err);
+          }
+        }
+
+        // 2. ✅ FETCH PRODUCT ID FROM /products API (latest product for this customer) - only if not set from state
+        if (!currentProductId && id) {
+          try {
+            const productsRes = await fetch(`${API_BASE_URL}/products?company_id=${id}`);
+            if (productsRes.ok) {
+              const productsData = await productsRes.json();
+              const products = Array.isArray(productsData) ? productsData : (productsData.data || []);
+              setchack(products)
+              if (products.length > 0) {
+                // Get the latest product (last in array)
+                const latestProduct = products[products.length - 1];
+                currentProductId = latestProduct.id;
+                currentProductName = latestProduct.name || latestProduct.productName || '';
+
+                // Set state
+                setProductId(currentProductId);
+                setProductName(currentProductName);
+              } else {
+                // No products found for this customer
+                setError('No products found for this customer. Please create a product first.');
+                setFieldDefinitions(defaultFieldDefinitions);
+                setLoading(false);
+                return;
+              }
+            } else {
+              setError('Failed to fetch products for this customer.');
+              setFieldDefinitions(defaultFieldDefinitions);
+              setLoading(false);
+              return;
+            }
+          } catch (productsErr) {
+            console.error('Products fetch failed:', productsErr);
+            setError('Failed to load products. Please try again.');
+            setFieldDefinitions(defaultFieldDefinitions);
+            setLoading(false);
+            return;
+          }
+        }
+console.log(currentProductId)
+        // 3. Load selected fields using the productId (from state or fetched)
+        if (currentProductId) {
+          try {
+            const fieldsRes = await fetch(`${API_BASE_URL}/products/${id}/bill-fields`);
+            if (fieldsRes.ok) {
+              const fieldsData = await fieldsRes.json();
+              let fieldsArray = [];
+
+              if (Array.isArray(fieldsData)) {
+                fieldsArray = fieldsData;
+              } else if (fieldsData && fieldsData.bill_fields && Array.isArray(fieldsData.bill_fields)) {
+                fieldsArray = fieldsData.bill_fields;
+              } else if (fieldsData && fieldsData.note && fieldsData.note.bill_fields && Array.isArray(fieldsData.note.bill_fields)) {
+                fieldsArray = fieldsData.note.bill_fields;
+              }
+
+              setSelectedFields(fieldsArray);
+              console.log('Selected bill fields loaded:', fieldsArray);
+            }
+          } catch (fieldsErr) {
+            console.log('No bill fields found for product:', currentProductId);
+          }
+        }
+
+        if (!id && !currentProductId) {
+          setError('Customer ID is required');
         }
       } catch (err) {
-        console.error('Error fetching bill field selections:', err);
-        setError('Failed to fetch bill field selections.');
-        setSelectedFields([]);
+        console.error('Initialization error:', err);
+        setError('Failed to initialize. Please try again.');
       } finally {
-        setLoadingFields(false);
-      }
-    };
-
-    fetchFieldSelections();
-  }, [customerId]);
-
-  // Fetch bills on component mount
-  useEffect(() => {
-    const fetchBills = async () => {
-      try {
-        setLoading(true);
-        console.log('Fetching bills for customer:', customerId);
-        
-        const response = customerId
-          ? await api.getBills(customerId)
-          : await api.getBills();
-          
-        console.log('Bills data:', response);
-        setTripData(response.data);
-      } catch (err) {
-        setError('Failed to fetch bills. Please try again.');
-        console.error('Error fetching bills:', err);
-      } finally {
+        setFieldDefinitions(defaultFieldDefinitions);
         setLoading(false);
       }
     };
 
-    fetchBills();
-  }, [customerId]);
+    init();
+  }, [id, location.state]);
+console.log(chack)
+  console.log('Product Name:', productName);
+  console.log('Product ID:', productId);
+  console.log('Customer ID (from params):', id);
 
-  // Fetch customers on component mount
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        const response = await api.getAllCustomers();
-        setCustomers(response.data);
-        
-        // Set selected customer if customerId is available
-        if (customerId) {
-          const customer = response.data.find(c => c.id === customerId);
-          if (customer) {
-            setSelectedCustomer({
-              id: customer.id,
-              name: customer.customerName,
-              address: customer.address
-            });
-          }
-        } else if (location.state?.selectedCustomer) {
-          setSelectedCustomer(location.state.selectedCustomer);
-        }
-      } catch (err) {
-        console.error('Error fetching customers:', err);
-      }
-    };
-
-    fetchCustomers();
-  }, [customerId, location.state?.selectedCustomer]);
-
-  // Define all possible fields with labels (matching BillFieldSelector fieldDefinitions)
-  const allFields = [
-    { key: 'id', label: 'ID' },
-    { key: 'category', label: 'Category' },
-    { key: 'date', label: 'Date' },
-    { key: 'challanNo', label: 'Challan No' },
-    { key: 'status', label: 'Status' },
-    { key: 'customerName', label: 'Customer Name' },
-    { key: 'distributorName', label: 'Distributor Name' },
-    { key: 'dealerName', label: 'Dealer Name' },
-    { key: 'vehicleNo', label: 'Vehicle No' },
-    { key: 'driverName', label: 'Driver Name' },
-    { key: 'vehicleSize', label: 'Vehicle Size' },
-    { key: 'from', label: 'From' },
-    { key: 'destination', label: 'Destination' },
-    { key: 'portfolio', label: 'Portfolio' },
-    { key: 'product', label: 'Product' },
-    { key: 'goods', label: 'Goods' },
-    { key: 'quantity', label: 'Quantity' },
-    { key: 'bikeQty', label: 'Bike Qty' },
-    { key: 'financial.unloadCharge', label: 'Unload Charge' },
-    { key: 'financial.vehicleRentWithVATTax', label: 'Vehicle Rent with VAT Tax' },
-    { key: 'financial.vehicleRent', label: 'Vehicle Rent' },
-    { key: 'financial.dropping', label: 'Dropping' },
-    { key: 'financial.alt5', label: 'Alt5' },
-    { key: 'financial.vat10', label: 'VAT 10%' },
-    { key: 'financial.totalRate', label: 'Total Rate' },
-    { key: 'financial.advance', label: 'Advance' },
-    { key: 'financial.due', label: 'Due' },
-    { key: 'financial.total', label: 'Total' },
-    { key: 'financial.profit', label: 'Profit' },
-    { key: 'financial.bodyFare', label: 'Body Fare' },
-    { key: 'financial.fuelCost', label: 'Fuel Cost' },
-    { key: 'financial.amount', label: 'Amount' },
-    { key: 'totalAmount', label: 'Total Amount' }
-  ];
-
-  // Filter selected fields that exist in allFields
-  const validSelectedFields = selectedFields
-    .map(fieldKey => allFields.find(f => f.key === fieldKey))
-    .filter(field => field !== undefined);
-
-  // Table columns: first 11 selected fields, plus actions
-  const tableColumns = validSelectedFields.slice(0, 11);
-
-  // Calculate totals for stats
-  const totalRecords = tripData.length;
-  const totalAmount = tripData.reduce((sum, item) => sum + (item.totalAmount || item.financial?.total || 0), 0);
-  const totalProfit = tripData.reduce((sum, item) => sum + (item.financial?.profit || 0), 0);
-
-  const stats = [
-    { label: 'Total Records', value: totalRecords.toString(), icon: TrendingUp, color: 'blue' },
-    { label: 'Total Amount', value: `৳${totalAmount.toLocaleString()}`, icon: DollarSign, color: 'green' },
-    { label: 'Total Profit', value: `৳${totalProfit.toLocaleString()}`, icon: DollarSign, color: 'purple' }
-  ];
-
-  const handleEdit = (item) => {
-    setEditingItem({ ...item });
-    setShowEditModal(true);
+  const sectionIcons = {
+    basic: FileText,
+    vehicle: Truck,
+    financial: DollarSign,
+    additional: Calendar
   };
 
-  const handleView = (item) => {
-    setViewingItem({ ...item });
-    setShowViewModal(true);
+  // Complete field definitions based on the API structure
+  const defaultFieldDefinitions = {
+    basic: [
+      { key: 'id', label: 'ID', type: 'string' },
+      { key: 'category', label: 'Category', type: 'string' },
+      { key: 'date', label: 'Date', type: 'string' },
+      { key: 'challanNo', label: 'Challan No', type: 'string' },
+      { key: 'status', label: 'Status', type: 'string' },
+      { key: 'customerName', label: 'Customer Name', type: 'string' },
+      { key: 'distributorName', label: 'Distributor Name', type: 'string' },
+      { key: 'dealerName', label: 'Dealer Name', type: 'string' }
+    ],
+    vehicle: [
+      { key: 'vehicleNo', label: 'Vehicle No', type: 'string' },
+      { key: 'driverName', label: 'Driver Name', type: 'string' },
+      { key: 'vehicleSize', label: 'Vehicle Size', type: 'string' },
+      { key: 'from', label: 'From', type: 'string' },
+      { key: 'destination', label: 'Destination', type: 'string' },
+      { key: 'portfolio', label: 'Portfolio', type: 'string' },
+      { key: 'product', label: 'Product', type: 'string' },
+      { key: 'goods', label: 'Goods', type: 'string' },
+      { key: 'quantity', label: 'Quantity', type: 'number' },
+      { key: 'bikeQty', label: 'Bike Qty', type: 'number' }
+    ],
+    financial: [
+      { key: 'financial.unloadCharge', label: 'Unload Charge', type: 'number' },
+      { key: 'financial.vehicleRentWithVATTax', label: 'Vehicle Rent with VAT Tax', type: 'number' },
+      { key: 'financial.vehicleRent', label: 'Vehicle Rent', type: 'number' },
+      { key: 'financial.dropping', label: 'Dropping', type: 'number' },
+      { key: 'financial.alt5', label: 'Alt5', type: 'number' },
+      { key: 'financial.vat10', label: 'VAT 10%', type: 'number' },
+      { key: 'financial.totalRate', label: 'Total Rate', type: 'number' },
+      { key: 'financial.advance', label: 'Advance', type: 'number' },
+      { key: 'financial.due', label: 'Due', type: 'number' },
+      { key: 'financial.total', label: 'Total', type: 'number' },
+      { key: 'financial.profit', label: 'Profit', type: 'number' },
+      { key: 'financial.bodyFare', label: 'Body Fare', type: 'number' },
+      { key: 'financial.fuelCost', label: 'Fuel Cost', type: 'number' },
+      { key: 'financial.amount', label: 'Amount', type: 'number' },
+      { key: 'totalAmount', label: 'Total Amount', type: 'number' }
+    ]
   };
 
-  const handleUpdate = async () => {
+  const handleCheckboxChange = (field) => {
+    setSelectedFields(prev =>
+      prev.includes(field) ? prev.filter(f => f !== field) : [...prev, field]
+    );
+  };
+
+  const removeSelectedField = (field) => {
+    setSelectedFields(prev => prev.filter(f => f !== field));
+  };
+
+  const handleNext = async () => {
+    if (selectedFields.length === 0) {
+      alert('Please select at least one field before proceeding.');
+      return;
+    }
+
+    if (!productId) {
+      setError('Product ID not found. Please try again.');
+      return;
+    }
+
     try {
-      await api.updateBill(editingItem.id, editingItem);
-      setTripData(tripData.map(item =>
-        item.id === editingItem.id ? editingItem : item
-      ));
-      setShowEditModal(false);
-      setEditingItem(null);
+      setSaving(true);
+
+      // Send selectedFields directly as array of strings
+      const requestBody = {
+        bill_fields: selectedFields
+      };
+
+      console.log('Sending bill fields data:', requestBody);
+
+      const response = await fetch(`${API_BASE_URL}/products/${id}/bill-fields`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('Response:', response);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('PUT request failed:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      setSuccessMessage('Bill fields saved successfully!');
+      setTimeout(() => {
+        // ✅ Navigate to bills page with customerId (since URL expects customerId)
+        navigate(`/customer/${id}/bill`, {
+          state: {
+            productId: productId,
+            productName: productName,
+            selectedCustomer: selectedCustomer
+          }
+        });
+      }, 1000);
+
     } catch (err) {
-      setError('Failed to update bill. Please try again.');
-      console.error('Error updating bill:', err);
+      console.error('BillField: Error in handleNext:', err);
+      setError('Failed to save field selections. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this record?')) {
-      try {
-        await api.deleteBill(id);
-        setTripData(tripData.filter(item => item.id !== id));
-      } catch (err) {
-        setError('Failed to delete bill. Please try again.');
-        console.error('Error deleting bill:', err);
-      }
-    }
+  const filteredFields = (fields) => {
+    return fields.filter(field => field.label.toLowerCase().includes(searchTerm.toLowerCase()));
   };
 
-  const handleSelectAll = () => {
-    const currentPageItems = getCurrentPageItems();
-    const currentPageIds = currentPageItems.map(item => item.id);
-    const allSelected = currentPageIds.every(id => selectedItems.includes(id));
-
-    if (allSelected) {
-      setSelectedItems(selectedItems.filter(id => !currentPageIds.includes(id)));
-    } else {
-      setSelectedItems([...new Set([...selectedItems, ...currentPageIds])]);
-    }
-  };
-
-  const handleSelectItem = (id) => {
-    if (selectedItems.includes(id)) {
-      setSelectedItems(selectedItems.filter(itemId => itemId !== id));
-    } else {
-      setSelectedItems([...selectedItems, id]);
-    }
-  };
-
-  const filteredData = tripData.filter(item => {
-    const searchStr = searchTerm.toLowerCase();
-    return tableColumns.some(col => {
-      if (!col || !col.key) return false;
-      // Handle nested financial fields
-      const value = col.key.includes('.')
-        ? item[col.key.split('.')[0]]?.[col.key.split('.')[1]]
-        : item[col.key];
-      return value?.toString().toLowerCase().includes(searchStr);
-    });
-  });
-
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-
-  const getCurrentPageItems = () => {
-    return filteredData.slice(startIndex, endIndex);
-  };
-
-  const currentPageItems = getCurrentPageItems();
-
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    setSelectedItems([]);
-  };
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisiblePages = 5;
-
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push('...');
-        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
-      } else {
-        pages.push(1);
-        pages.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      }
-    }
-    return pages;
-  };
-
-  React.useEffect(() => {
-    setCurrentPage(1);
-    setSelectedItems([]);
-  }, [searchTerm]);
-
-  // Export Functions
-  const exportToExcel = () => {
-    const data = selectedItems.length > 0
-      ? tripData.filter(item => selectedItems.includes(item.id))
-      : tripData;
-
-    const headers = ['ID', ...tableColumns.map(col => col?.label || 'Unknown')];
-
-    const worksheet = XLSX.utils.json_to_sheet(data.map(item => {
-      const row = { 'ID': item.id };
-      tableColumns.forEach(col => {
-        if (!col || !col.key) return;
-        // Handle nested financial fields
-        const value = col.key.includes('.')
-          ? item[col.key.split('.')[0]]?.[col.key.split('.')[1]]
-          : item[col.key];
-        // Handle 'unknown' values and format numbers
-        if (value === 'unknown' || value === null || value === undefined) {
-          row[col.label] = '';
-        } else if (typeof value === 'number') {
-          row[col.label] = value;
-        } else {
-          row[col.label] = value;
-        }
-      });
-      return row;
-    }));
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Bill Records');
-    XLSX.writeFile(workbook, 'custom_bills.xlsx');
-  };
-
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    const data = selectedItems.length > 0
-      ? tripData.filter(item => selectedItems.includes(item.id))
-      : tripData;
-
-    doc.setFontSize(18);
-    doc.text('Custom Bill Records', 14, 22);
-    doc.setFontSize(11);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
-    
-    const tableData = data.map(item => {
-      const row = [item.id];
-      tableColumns.forEach(col => {
-        if (!col || !col.key) {
-          row.push('');
-          return;
-        }
-        // Handle nested financial fields
-        const value = col.key.includes('.')
-          ? item[col.key.split('.')[0]]?.[col.key.split('.')[1]]
-          : item[col.key];
-        // Handle 'unknown' values and format numbers
-        if (value === 'unknown' || value === null || value === undefined) {
-          row.push('');
-        } else if (typeof value === 'number') {
-          row.push(`৳${value.toLocaleString()}`);
-        } else {
-          row.push(value);
-        }
-      });
-      return row;
-    });
-
-    const head = ['ID', ...tableColumns.map(col => col?.label || 'Unknown')];
-    doc.autoTable({
-      head: [head],
-      body: tableData,
-      startY: 40,
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: { fillColor: [37, 99, 235], fontSize: 10 }
-    });
-
-    doc.save('custom_bills.pdf');
-  };
-
-  const handlePrint = () => {
-    const printContent = printRef.current.cloneNode(true);
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Custom Bill List</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .header { text-align: center; margin-bottom: 20px; }
-            .stats { display: flex; justify-content: space-around; margin-bottom: 20px; }
-            .stat-card { border: 1px solid #ddd; padding: 10px; border-radius: 5px; text-align: center; }
-          </style>
-        </head>
-        <body>
-          ${printContent.innerHTML}
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-  };
-
-  if (loadingFields || loading) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <Loader2 size={64} className="mx-auto mb-4 text-indigo-600 animate-spin" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Loading Bill Data...</h2>
-          <p className="text-gray-600">Please wait while we fetch the data.</p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Loading Field Selections...</h2>
+          <p className="text-gray-600">Please wait while we fetch your preferences.</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && !saving) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle size={64} className="mx-auto mb-4 text-red-400" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Error</h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-            >
-              Retry
-            </button>
-            {customerId && (
-              <button
-                onClick={() => navigate('/customers')}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Back to Customers
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const isSubmitted = localStorage.getItem('billFieldsSubmitted') === 'true';
-
-  if (validSelectedFields.length === 0 || !isSubmitted) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle size={64} className="mx-auto mb-4 text-gray-400" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">No Fields Selected</h2>
-          <p className="text-gray-600 mb-4">Please select fields in BillField component first.</p>
           <button
-            onClick={() => {
-              localStorage.removeItem('billFieldsSubmitted');
-              if (customerId) {
-                navigate(`/customer/${customerId}/bill-field`);
-              } else {
-                navigate('/bill-field');
-              }
-            }}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
           >
-            Go to BillField
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (tripData.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle size={64} className="mx-auto mb-4 text-gray-400" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">No Bill Data Found</h2>
-          <p className="text-gray-600 mb-4">Create your first bill to get started.</p>
-          <button
-            onClick={() => navigate('/add-bill')}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-          >
-            Add First Bill
+            Retry
           </button>
         </div>
       </div>
@@ -486,363 +302,217 @@ export default function CustomBillList() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation */}
-      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 px-8 py-4 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <h1 className="text-white text-2xl font-bold">
-              {selectedCustomer ? `${selectedCustomer.name} - Bills` : 'Custom Bill Records'}
-            </h1>
-            {selectedCustomer && (
-              <p className="text-white/80 text-sm">{selectedCustomer.address}</p>
-            )}
-          </div>
-          {customerId && (
-            <button
-              onClick={() => navigate('/customers')}
-              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors"
-            >
-              <ArrowLeft size={18} />
-              <span className="font-medium">Back to Customers</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="px-8 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {stats.map((stat, idx) => (
-            <div key={idx} className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`p-2 bg-${stat.color}-50 rounded-lg`}>
-                  <stat.icon className={`text-${stat.color}-600`} size={20} />
-                </div>
-              </div>
-              <p className="text-gray-600 text-xs mb-1">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Main Content Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-          {/* Action Bar */}
-          <div className="p-6 border-b border-gray-200">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white px-8 py-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">
-                Bill Records
-              </h2>
-              <Link
-                to="/add-bill"
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <Plus size={18} />
-                <span className="font-medium">Add Bill</span>
-              </Link>
-            </div>
+              <div>
+                <h2 className="text-3xl font-bold">Select Bill Fields</h2>
+                <p className="text-indigo-100 mt-2">Choose the fields you want to include in your bill report</p>
 
-            {/* Search Bar and Export */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Search bills..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div className="relative group">
-                <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50">
-                  <Download size={18} />
-                  <span>Export</span>
-                </button>
-                <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block z-10">
-                  <button onClick={exportToExcel} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2">
-                    <FileText size={16} /> Export to Excel
-                  </button>
-                  <button onClick={exportToPDF} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2">
-                    <FileText size={16} /> Export to PDF
-                  </button>
-                  <button onClick={handlePrint} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2">
-                    <Printer size={16} /> Print
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+                {/* Customer and Product Info */}
+                {selectedCustomer && (
+                  <div className="mt-4 space-y-2">
+                    <div className="p-4 bg-white/10 rounded-lg backdrop-blur-sm">
+                      <div className="flex items-center mb-2">
+                        <User className="h-5 w-5 mr-2 text-indigo-200" />
+                        <span className="text-sm text-indigo-100">Customer:</span>
+                      </div>
+                      <p className="font-semibold text-white text-lg ml-7">{selectedCustomer.name}</p>
+                    </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto" ref={printRef}>
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white">
-                <tr>
-                  <th className="px-4 py-3 text-left">
-                    <input
-                      type="checkbox"
-                      checked={currentPageItems.length > 0 && currentPageItems.every(item => selectedItems.includes(item.id))}
-                      onChange={handleSelectAll}
-                      className="w-4 h-4 rounded"
-                    />
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">SL No</th>
-                  {tableColumns.map(col => (
-                    <th key={col.key} className="px-4 py-3 text-left text-sm font-semibold">
-                      {col.label}
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-center text-sm font-semibold">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {currentPageItems.length > 0 ? (
-                  currentPageItems.map((item, idx) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.includes(item.id)}
-                          onChange={() => handleSelectItem(item.id)}
-                          className="w-4 h-4 rounded"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-sm">{startIndex + idx + 1}</td>
-                      {tableColumns.map(col => (
-                        <td key={col?.key || 'unknown'} className="px-4 py-3 text-sm">
-                          {(() => {
-                            if (!col || !col.key) return '';
-                            // Handle nested financial fields
-                            const value = col.key.includes('.')
-                              ? item[col.key.split('.')[0]]?.[col.key.split('.')[1]]
-                              : item[col.key];
-                            // Handle 'unknown' values and format numbers
-                            if (value === 'unknown' || value === null || value === undefined) return '';
-                            return typeof value === 'number' ? `৳${value.toLocaleString()}` : value;
-                          })()}
-                        </td>
-                      ))}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleView(item)}
-                            className="p-1.5 hover:bg-blue-50 rounded"
-                            title="View Details"
-                          >
-                            <Eye size={16} className="text-blue-600" />
-                          </button>
-                          <button
-                            onClick={() => handleEdit(item)}
-                            className="p-1.5 hover:bg-green-50 rounded"
-                            title="Edit"
-                          >
-                            <Edit2 size={16} className="text-green-600" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="p-1.5 hover:bg-red-50 rounded"
-                            title="Delete"
-                          >
-                            <Trash2 size={16} className="text-red-600" />
-                          </button>
+                    {productName && (
+                      <div className="p-4 bg-white/10 rounded-lg backdrop-blur-sm">
+                        <div className="flex items-center mb-2">
+                          <Package className="h-5 w-5 mr-2 text-indigo-200" />
+                          <span className="text-sm text-indigo-100">Product:</span>
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={tableColumns.length + 3} className="px-4 py-12 text-center text-gray-500">
-                      <AlertCircle size={48} className="mx-auto mb-3 text-gray-300" />
-                      <p className="text-lg font-medium">No records found</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Showing <strong>{startIndex + 1}-{Math.min(endIndex, filteredData.length)}</strong> of <strong>{filteredData.length}</strong>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-3 py-1.5 border rounded text-sm flex items-center gap-1 ${
-                  currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <ChevronLeft size={16} />
-                Previous
-              </button>
-
-              {getPageNumbers().map((page, idx) => (
-                page === '...' ? (
-                  <span key={`ellipsis-${idx}`} className="px-2 text-gray-500">...</span>
-                ) : (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    className={`px-3 py-1.5 rounded text-sm ${
-                      currentPage === page ? 'bg-indigo-600 text-white' : 'border hover:bg-gray-50'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                )
-              ))}
-
-              <button
-                onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-3 py-1.5 border rounded text-sm flex items-center gap-1 ${
-                  currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Next
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Edit Modal */}
-      {showEditModal && editingItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white px-6 py-4 flex items-center justify-between sticky top-0">
-              <h2 className="text-xl font-semibold">Edit Bill Record</h2>
-              <button onClick={() => setShowEditModal(false)} className="hover:bg-indigo-700 p-1 rounded">
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                {validSelectedFields.map(field => (
-                  <div key={field.key}>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {field.label}
-                    </label>
-                    {field.key === 'date' ? (
-                      <input
-                        type="date"
-                        value={(() => {
-                          const value = field.key.includes('.')
-                            ? editingItem[field.key.split('.')[0]]?.[field.key.split('.')[1]]
-                            : editingItem[field.key];
-                          return (value && value !== 'unknown') ? value : '';
-                        })()}
-                        onChange={(e) => {
-                          if (field.key.includes('.')) {
-                            const [obj, prop] = field.key.split('.');
-                            setEditingItem({
-                              ...editingItem,
-                              [obj]: {
-                                ...editingItem[obj],
-                                [prop]: e.target.value
-                              }
-                            });
-                          } else {
-                            setEditingItem({...editingItem, [field.key]: e.target.value});
-                          }
-                        }}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                      />
-                    ) : (
-                      <input
-                        type={(() => {
-                          const value = field.key.includes('.')
-                            ? editingItem[field.key.split('.')[0]]?.[field.key.split('.')[1]]
-                            : editingItem[field.key];
-                          return typeof value === 'number' ? 'number' : 'text';
-                        })()}
-                        value={(() => {
-                          const value = field.key.includes('.')
-                            ? editingItem[field.key.split('.')[0]]?.[field.key.split('.')[1]]
-                            : editingItem[field.key];
-                          return (value && value !== 'unknown') ? value : '';
-                        })()}
-                        onChange={(e) => {
-                          if (field.key.includes('.')) {
-                            const [obj, prop] = field.key.split('.');
-                            setEditingItem({
-                              ...editingItem,
-                              [obj]: {
-                                ...editingItem[obj],
-                                [prop]: Number(e.target.value)
-                              }
-                            });
-                          } else {
-                            const value = field.key.includes('.') ? Number(e.target.value) : e.target.value;
-                            setEditingItem({...editingItem, [field.key]: value});
-                          }
-                        }}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                      />
+                        <p className="font-semibold text-white text-lg ml-7">{productName}</p>
+                      </div>
                     )}
                   </div>
-                ))}
+                )}
               </div>
+              {selectedCustomer && (
+                <button
+                  onClick={() => navigate('/customers')}
+                  className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                >
+                  Back to Customers
+                </button>
+              )}
+            </div>
 
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={handleUpdate}
-                  className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white rounded-lg hover:from-indigo-700 hover:to-blue-700"
-                >
-                  Update Record
-                </button>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
+            {/* Success Message */}
+            {successMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-green-500/20 border border-green-400/30 rounded-lg p-3 text-center"
+              >
+                <p className="text-green-100 text-sm flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {successMessage}
+                </p>
+              </motion.div>
+            )}
+
+            {/* Error Message */}
+            {error && saving && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-500/20 border border-red-400/30 rounded-lg p-3 text-center mt-3"
+              >
+                <p className="text-red-100 text-sm flex items-center justify-center">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  {error}
+                </p>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Search Bar */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <input
+                type="text"
+                placeholder="Search fields..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              />
             </div>
           </div>
-        </div>
-      )}
 
-      {/* View Modal */}
-      {showViewModal && viewingItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white px-6 py-4 flex items-center justify-between sticky top-0">
-              <h2 className="text-xl font-semibold">Bill Record Details</h2>
-              <button onClick={() => setShowViewModal(false)} className="hover:bg-indigo-700 p-1 rounded">
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {validSelectedFields.map(field => (
-                <div key={field.key}>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {field.label}
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {(() => {
-                      if (!field || !field.key) return 'N/A';
-                      // Handle nested financial fields
-                      const value = field.key.includes('.')
-                        ? viewingItem[field.key.split('.')[0]]?.[field.key.split('.')[1]]
-                        : viewingItem[field.key];
-                      // Handle 'unknown' values and format numbers
-                      if (value === 'unknown' || value === null || value === undefined) return '';
-                      return typeof value === 'number' ? `৳${value.toLocaleString()}` : value;
-                    })()}
-                  </p>
+          {/* Field Selection */}
+          <div className="p-8">
+            {Object.entries(fieldDefinitions).map(([sectionKey, fields]) => {
+              const IconComponent = sectionIcons[sectionKey];
+              const filtered = filteredFields(fields);
+              if (filtered.length === 0) return null;
+
+              return (
+                <div
+                  key={sectionKey}
+                  className="mb-8 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 shadow-lg border border-gray-200"
+                >
+                  <div className="flex items-center mb-4">
+                    <IconComponent className="h-6 w-6 text-indigo-600 mr-3" />
+                    <h3 className="text-xl font-semibold text-gray-800">
+                      {sectionKey.charAt(0).toUpperCase() + sectionKey.slice(1)} Information
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filtered.map(field => (
+                      <motion.div
+                        key={field.key}
+                        onClick={() => handleCheckboxChange(field.key)}
+                        className="flex items-center p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-200 hover:border-indigo-300"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        animate={{
+                          borderColor: selectedFields.includes(field.key) ? '#4f46e5' : '#e5e7eb',
+                          backgroundColor: selectedFields.includes(field.key) ? '#f0f9ff' : '#ffffff'
+                        }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <motion.div
+                          className={`w-5 h-5 rounded-md border-2 mr-3 flex items-center justify-center transition-all flex-shrink-0 ${
+                            selectedFields.includes(field.key)
+                              ? 'bg-indigo-600 border-indigo-600'
+                              : 'border-gray-300 hover:border-indigo-400'
+                          }`}
+                          animate={{
+                            scale: selectedFields.includes(field.key) ? 1.1 : 1,
+                          }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                        >
+                          <AnimatePresence>
+                            {selectedFields.includes(field.key) && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0 }}
+                                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                              >
+                                <CheckCircle className="w-3 h-3 text-white" />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                        <span className="text-gray-700 font-medium">{field.label}</span>
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              );
+            })}
+
+            {/* Selected Fields Display */}
+            <div className="mt-8 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-lg border border-indigo-200">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <span className="mr-2">Selected Fields</span>
+                <span className="bg-indigo-600 text-white px-2 py-1 rounded-full text-sm">{selectedFields.length}</span>
+              </h3>
+              {selectedFields.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedFields.map(field => {
+                    const fieldObj = Object.values(fieldDefinitions).flat().find(f => f.key === field);
+                    return (
+                      <span
+                        key={field}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 border border-indigo-200"
+                      >
+                        {fieldObj?.label}
+                        <button
+                          onClick={() => removeSelectedField(field)}
+                          className="ml-2 text-indigo-600 hover:text-indigo-800"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500">No fields selected yet. Choose some above!</p>
+              )}
+            </div>
+
+            {/* Next Button */}
+            <div className="mt-8 flex justify-end">
+              <motion.button
+                onClick={handleNext}
+                disabled={selectedFields.length === 0 || saving}
+                className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl disabled:bg-gray-400 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                whileHover={{ scale: selectedFields.length > 0 && !saving ? 1.05 : 1 }}
+                whileTap={{ scale: selectedFields.length > 0 && !saving ? 0.95 : 1 }}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    Save & Continue
+                    <motion.span
+                      animate={{ x: [0, 5, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.5 }}
+                    >
+                      →
+                    </motion.span>
+                  </>
+                )}
+              </motion.button>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -38,8 +38,8 @@ const Customer = () => {
       // If accessed via /customer/:id/:name route, fetch specific customer
       if (id && name) {
         try {
-          const response = await fetch(`${API_BASE_URL}/customers/${id}`);
-          //  const response = await fetch(`http://localhost:5000/customers/${id}`);
+          // ✅ FIX: Use singular endpoint /customer (not /customers)
+          const response = await fetch(`${API_BASE_URL}/customer/${id}`);
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
@@ -73,8 +73,8 @@ const Customer = () => {
     try {
       setLoading(true);
       setError(null);
+      // ✅ FIX: Use singular endpoint /customer (not /customers)
       const response = await fetch(`${API_BASE_URL}/customer`);
-      //  const response = await fetch('http://localhost:5000/customers');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -132,56 +132,117 @@ const Customer = () => {
     setErrorMessage(''); // Clear errors on change
   };
 
-  const handleCreateProduct = async (e) => {
-    e.preventDefault();
-    if (!formData.selectedCustomerId || !formData.name.trim()) {
-      setErrorMessage('Please select a customer and enter a name.');
-      return;
+  // ✅ FIXED: handleCreateProduct function
+const handleCreateProduct = async (e) => {
+  e.preventDefault();
+  if (!formData.selectedCustomerId || !formData.name.trim()) {
+    setErrorMessage('Please select a customer and enter a name.');
+    return;
+  }
+
+  try {
+    setCreating(true);
+    setErrorMessage('');
+    const productData = {
+      name: formData.name.trim(),
+      company_id: parseInt(formData.customerId, 10)
+    };
+    console.log('Sending product ', productData);
+    
+    const response = await fetch(`${API_BASE_URL}/products`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(productData),
+    });
+    
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage += ` - ${errorData.message || JSON.stringify(errorData)}`;
+      } catch (e) {
+        const errorText = await response.text();
+        errorMessage += ` - ${errorText}`;
+      }
+      throw new Error(errorMessage);
+    }
+    
+    // ✅ Handle different response formats
+    let createdProductId = null;
+    let createdProduct = null;
+    
+    try {
+      // Try to parse as JSON first
+      createdProduct = await response.json();
+      console.log('Created product response (JSON):', createdProduct);
+      
+      // Try different ways to extract ID
+      createdProductId = 
+        createdProduct.id || 
+        createdProduct.data?.id || 
+        createdProduct.product_id ||
+        createdProduct._id;
+    } catch (jsonError) {
+      // If JSON parsing fails, it might be plain text
+      const textResponse = await response.text();
+      console.log('Created product response (Text):', textResponse);
+      
+      // Try to extract ID from text response (if it contains ID)
+      const idMatch = textResponse.match(/id[:\s]*["']?(\d+)["']?/i);
+      if (idMatch) {
+        createdProductId = parseInt(idMatch[1], 10);
+      }
+    }
+    
+    // ✅ If still no ID, fetch the latest product for this customer
+    if (!createdProductId) {
+      console.log('No ID in response, fetching latest product...');
+      const productsResponse = await fetch(`${API_BASE_URL}/products?company_id=${formData.customerId}`);
+      if (productsResponse.ok) {
+        const productsData = await productsResponse.json();
+        const products = Array.isArray(productsData) ? productsData : (productsData.data || []);
+        if (products.length > 0) {
+          // Sort by ID descending to get the latest
+          products.sort((a, b) => (b.id || 0) - (a.id || 0));
+          createdProductId = products[0].id;
+        }
+      }
+    }
+    
+    if (!createdProductId) {
+      throw new Error('Product ID could not be determined from API response');
     }
 
-    try {
-      setCreating(true);
-      setErrorMessage('');
-      const productData = {
-        name: formData.name.trim(),
-        company_id: parseInt(formData.customerId, 10)
-      };
-      console.log('Sending product data:', productData); // Debug log
-      const response = await fetch(`${API_BASE_URL}/products`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+    setSuccessMessage(`Product '${formData.name}' has been created successfully for customer '${formData.customerName}'.`);
+
+    // Navigate to trip-field page with product details
+    navigate(`/customer/${formData.customerId}/trip-field`, {
+      state: {
+        productId: createdProductId,
+        productName: formData.name,
+        selectedCustomer: {
+          id: formData.customerId,
+          name: formData.customerName
         },
-        body: JSON.stringify(productData),
-      });
-      if (!response.ok) {
-        let errorMessage = `HTTP error! status: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMessage += ` - ${errorData.message || JSON.stringify(errorData)}`;
-        } catch (e) {
-          const errorText = await response.text();
-          errorMessage += ` - ${errorText}`;
-        }
-        throw new Error(errorMessage);
+        successMessage: `Product '${formData.name}' created successfully!`
       }
-      const data = await response.json();
-      setSuccessMessage(`Product '${formData.name}' has been created successfully for customer '${formData.customerName}'.`);
-      // Navigate to trip-field page after success
-      navigate(`/customer/${formData.customerId}/trip-field`);
-      // Reset form and close modal after a short delay
-      setTimeout(() => {
-        setFormData({ selectedCustomerId: '', customerId: '', customerName: '', name: '' });
-        setIsModalOpen(false);
-        setSuccessMessage('');
-      }, 2000);
-    } catch (err) {
-      console.error('Error creating product:', err);
-      setErrorMessage('Failed to create product. Please try again.');
-    } finally {
-      setCreating(false);
-    }
-  };
+    });
+    
+    // Reset form and close modal after a short delay
+    setTimeout(() => {
+      setFormData({ selectedCustomerId: '', customerId: '', customerName: '', name: '' });
+      setIsModalOpen(false);
+      setSuccessMessage('');
+    }, 2000);
+  } catch (err) {
+    console.error('Error creating product:', err);
+    setErrorMessage('Failed to create product. Please try again.');
+  } finally {
+    setCreating(false);
+  }
+};
 
   const handleCustomerClick = (customer) => {
     const slug = generateSlug(customer.name);
@@ -413,8 +474,8 @@ const Customer = () => {
             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <div className="relative z-10 flex flex-col items-center justify-center h-full text-white">
               <Plus className="h-12 w-12 mb-4 group-hover:rotate-90 transition-transform duration-300" />
-              <h3 className="text-xl font-semibold mb-2">Create New Customer</h3>
-              <p className="text-green-100 text-center">Add a new customer to your list</p>
+              <h3 className="text-xl font-semibold mb-2">Create New Product</h3>
+              <p className="text-green-100 text-center">Add a new product to your list</p>
             </div>
           </motion.div>
 
@@ -476,7 +537,7 @@ const Customer = () => {
         )}
       </div>
 
-      {/* Create Customer Modal */}
+      {/* Create Product Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
@@ -537,14 +598,14 @@ const Customer = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name *
+                    Product Name *
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={handleNameChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Enter name"
+                    placeholder="Enter product name"
                     required
                   />
                 </div>

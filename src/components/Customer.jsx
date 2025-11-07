@@ -28,6 +28,9 @@ const Customer = () => {
   const [creating, setCreating] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [products, setProducts] = useState([]);
+  const [notification, setNotification] = useState('');
+  const [customername, setcustomername] = useState();
   const navigate = useNavigate();
 
   // Fetch customers on mount and handle customer details view
@@ -35,7 +38,7 @@ const Customer = () => {
     const initializeComponent = async () => {
       await fetchCustomers();
 
-      // If accessed via /customer/:id/:name route, fetch specific customer
+      // If accessed via /customer/:id/:name route, fetch specific customer and products
       if (id && name) {
         try {
           // ✅ FIX: Use singular endpoint /customer (not /customers)
@@ -44,7 +47,7 @@ const Customer = () => {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
           const data = await response.json();
-          console.log(data)
+        
           const transformedData = {
             id: data.id,
             name: data.customerName || data.name || '',
@@ -59,6 +62,22 @@ const Customer = () => {
             joiningDate: data.joiningDate || new Date().toISOString().split('T')[0]
           };
           setSelectedCustomer(transformedData);
+
+          // Fetch products for this customer
+          const customerIdToUse = id;
+          console.log(customerIdToUse)
+          const productsRes = await fetch(`${API_BASE_URL}/products?company_id=${customerIdToUse}`);
+          const productsData = await productsRes.json();
+
+          const productsArray = Array.isArray(productsData)
+            ? productsData
+            : (productsData.data || []);
+
+          const filteredProducts = productsArray.filter(
+            (item) => item.company_id == customerIdToUse
+          );
+
+          setProducts(filteredProducts);
         } catch (err) {
           console.error('Error fetching customer details:', err);
           setError('Failed to fetch customer details.');
@@ -68,7 +87,8 @@ const Customer = () => {
 
     initializeComponent();
   }, [id, name]);
-
+console.log(selectedCustomer)
+console.log(name)
   const fetchCustomers = async () => {
     try {
       setLoading(true);
@@ -243,7 +263,6 @@ const handleCreateProduct = async (e) => {
     setCreating(false);
   }
 };
-
   const handleCustomerClick = (customer) => {
     const slug = generateSlug(customer.name);
     navigate(`/customer/${customer.id}/${slug}`, {
@@ -370,13 +389,13 @@ const handleCreateProduct = async (e) => {
           >
             <div className="flex items-center justify-center w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full mb-6 mx-auto">
               <span className="text-white font-bold text-3xl">
-                {getInitials(selectedCustomer.name)}
+                {getInitials(name)}
               </span>
             </div>
 
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-white mb-2">
-                {selectedCustomer.name}
+                {name}
               </h2>
               <p className="text-gray-300 text-lg mb-4">{selectedCustomer.address}</p>
               <div className="flex items-center justify-center">
@@ -390,9 +409,16 @@ const handleCreateProduct = async (e) => {
               </div>
             </div>
 
+            {/* Notification */}
+            {notification && (
+              <div className="mb-4 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg text-yellow-400 text-center">
+                {notification}
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-4 justify-center">
-              <button
+              {/* <button
                 onClick={() => navigate(`/customer/${selectedCustomer.id}/trip-field`)}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2"
               >
@@ -406,10 +432,25 @@ const handleCreateProduct = async (e) => {
               >
                 <Edit2 className="h-5 w-5" />
                 Manage Bills
-              </button>
+              </button> */}
 
               <button
-                onClick={() => navigate(`/customer/${selectedCustomer.id}/trips`)}
+                onClick={() => {
+                  if (products.length > 0) {
+                    const firstProductId = products[0].id;
+                    navigate(`/customer/${firstProductId}/trips`,{
+                        state: {
+                      productId: firstProductId,
+                      productName: products[0].name,
+                      customerId: id,
+                      customerName: selectedCustomer.name
+                    }
+                  });
+                  } else {
+                    setNotification('Please create a new product');
+                    setTimeout(() => setNotification(''), 3000);
+                  }
+                }}
                 className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2"
               >
                 <User className="h-5 w-5" />

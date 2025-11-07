@@ -54,6 +54,17 @@ import { useParams } from 'react-router-dom'
 import Customer from './components/Customer'
 import CustomBillRecord from './pages/BrandManagement/CustomBillRecord'
 import AddCustomTrip from './pages/BrandManagement/AddTrip'
+import Profit from './pages/Profit/Profit'
+import AddProfit from './pages/Profit/AddProfit'
+import Security from './pages/Profit/Sequrity'
+import TripExpense from './pages/fleet Management/Trip Expense/TripExpense'
+import Outsidetrip from './pages/fleet Management/outsidetrip/Outsidetrip'
+import Summary from './pages/fleet Management/outsidetrip/Summary'
+import AddOutsideTrip from './pages/fleet Management/outsidetrip/AddOutsideTrip'
+import OutsideTripDetails from './pages/fleet Management/outsidetrip/OutsideTripDetails'
+import AddPurchase from './pages/purchase/AddPurchase'
+import OunVehicle from './pages/Ownvehicle/OunVehicle'
+import Home from './componend/Home/Home'
 
 function App() {
   return (
@@ -84,7 +95,7 @@ function App() {
           <Route path='/mahindrabillrecord' element={<MahindraBillrecord/>} />
           <Route path='/mahindrabill' element={<MahindraBill/>} />
           <Route path='/add-employee' element={<AddEmployee/>} />
-          <Route path='/imployee' element={<Imployee/>}/>
+          <Route path='/employee' element={<Imployee/>}/>
           <Route path='/driver' element={<Driver/>}/>
           <Route path='/add-driver' element={<AddDriver/>}/>
           <Route path='/helper' element={<HelperPage/>}/>
@@ -94,6 +105,7 @@ function App() {
           <Route path='/dealer' element={<DealerPage/>}/>
           <Route path='/add-dealer' element={<AddDealer/>}/>
           <Route path='/purchase' element={<PurchaseList/>}/>
+          <Route path='/purchase/add' element={<AddPurchase/>}/>
           <Route path='/add-pricing' element={<AddPricing/>}/>
           <Route path='/brand/premiaflix' element={<Premiafix/>}/>
           <Route path='/premiaflixbill' element={<PremiafixBill/>}/>
@@ -122,6 +134,16 @@ function App() {
           <Route path='/customer/:id/:name' element={<Customer />} />
           <Route path='/customer/:id/custombillrecord' element={<CustomBillRecord/>}/>
           <Route path='/add-trip/:productId' element={<AddCustomTrip/>}/>
+          <Route path='/profit' element={<Profit/>}/>
+          <Route path='/add-profit' element={<AddProfit/>}/>
+          <Route path='/security' element={<Security/>}/>
+          <Route path='/tripexpense' element={<TripExpense/>}/>
+          <Route path='/outside' element={<Outsidetrip/>}/>
+          <Route path='/outside/:id' element={<OutsideTripDetails/>}/>
+          <Route path='/addoutside' element={<Summary/>}/>
+          <Route path='/add-outside-trip' element={<AddOutsideTrip/>}/>
+          <Route path='/home' element={<Home/>}/>
+          <Route path='/ounvehicle' element={<OunVehicle/>}/>
         </Route>
       </Routes>
     </BrowserRouter>

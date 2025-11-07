@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 export default function PurchaseList() {
@@ -12,108 +12,56 @@ export default function PurchaseList() {
   const [editingPurchase, setEditingPurchase] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingPurchase, setViewingPurchase] = useState(null);
+  const [purchases, setPurchases] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const itemsPerPage = 10;
   const printRef = useRef();
 
-  const [purchases, setPurchases] = useState([
-    {
-      id: 1,
-      deliveryDate: '2024-01-15',
-      orderId: 'PO-2024-001',
-      supplierName: 'ABC Suppliers Ltd.',
-      items: 'Engine Oil, Brake Pads, Filters',
-      quantity: '50 units',
-      category: 'Automotive Parts',
-      totalAmount: '25000',
-      paymentStatus: 'Paid',
-      billImage: 'https://via.placeholder.com/100x100?text=Bill',
-      orderDate: '2024-01-10',
-      vehicleNo: 'TRK-001',
-      notes: 'Urgent delivery required for maintenance'
-    },
-    {
-      id: 2,
-      deliveryDate: '2024-01-20',
-      orderId: 'PO-2024-002',
-      supplierName: 'XYZ Industrial Corp.',
-      items: 'Tires, Batteries, Spark Plugs',
-      quantity: '30 units',
-      category: 'Vehicle Parts',
-      totalAmount: '45000',
-      paymentStatus: 'Pending',
-      billImage: 'https://via.placeholder.com/100x100?text=Bill',
-      orderDate: '2024-01-18',
-      vehicleNo: 'TRK-002',
-      notes: 'Standard delivery timeline'
-    },
-    {
-      id: 3,
-      deliveryDate: '2024-01-25',
-      orderId: 'PO-2024-003',
-      supplierName: 'Global Parts Inc.',
-      items: 'Fuel Pumps, Alternators',
-      quantity: '20 units',
-      category: 'Engine Parts',
-      totalAmount: '35000',
-      paymentStatus: 'Paid',
-      billImage: 'https://via.placeholder.com/100x100?text=Bill',
-      orderDate: '2024-01-22',
-      vehicleNo: 'TRK-003',
-      notes: 'Quality checked items'
-    },
-    {
-      id: 4,
-      deliveryDate: '2024-02-01',
-      orderId: 'PO-2024-004',
-      supplierName: 'Premium Auto Parts',
-      items: 'Brake Discs, Suspension Parts',
-      quantity: '40 units',
-      category: 'Brake System',
-      totalAmount: '28000',
-      paymentStatus: 'Overdue',
-      billImage: 'https://via.placeholder.com/100x100?text=Bill',
-      orderDate: '2024-01-28',
-      vehicleNo: 'TRK-004',
-      notes: 'Express delivery requested'
-    },
-    {
-      id: 5,
-      deliveryDate: '2024-02-05',
-      orderId: 'PO-2024-005',
-      supplierName: 'Industrial Solutions Ltd.',
-      items: 'Hydraulic Oil, Transmission Fluid',
-      quantity: '60 units',
-      category: 'Lubricants',
-      totalAmount: '18000',
-      paymentStatus: 'Paid',
-      billImage: 'https://via.placeholder.com/100x100?text=Bill',
-      orderDate: '2024-02-02',
-      vehicleNo: 'TRK-005',
-      notes: 'Bulk purchase discount applied'
-    }
-  ]);
+  // Fetch purchases from API
+  useEffect(() => {
+    const fetchPurchases = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://192.168.0.106:8080/api/v1/purchase');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        // API returns {data: Array, meta: {...}}, so extract the data array
+        setPurchases(data.data || []);
+      } catch (err) {
+        console.error('Error fetching purchases:', err);
+        setError('Failed to load purchases. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchPurchases();
+  }, []);
+console.log(purchases)
   const stats = [
-    { label: 'Total Purchases', value: purchases.length, color: 'blue', trend: '+5' },
-    { label: 'Paid Purchases', value: purchases.filter(p => p.paymentStatus === 'Paid').length, color: 'green', trend: '+3' },
-    { label: 'Pending Payments', value: purchases.filter(p => p.paymentStatus === 'Pending').length, color: 'orange', trend: '+1' },
-    { label: 'Overdue Payments', value: purchases.filter(p => p.paymentStatus === 'Overdue').length, color: 'red', trend: '+1' }
+    { label: 'Total Purchases', value: Array.isArray(purchases) ? purchases.length : 0, color: 'blue', trend: '+5' },
+    { label: 'Paid Purchases', value: Array.isArray(purchases) ? purchases.filter(p => p.paymentStatus === 'Paid').length : 0, color: 'green', trend: '+3' },
+    { label: 'Pending Payments', value: Array.isArray(purchases) ? purchases.filter(p => p.paymentStatus === 'Pending').length : 0, color: 'orange', trend: '+1' },
+    { label: 'Overdue Payments', value: Array.isArray(purchases) ? purchases.filter(p => p.paymentStatus === 'Overdue').length : 0, color: 'red', trend: '+1' }
   ];
 
   const categories = ['all', 'Automotive Parts', 'Vehicle Parts', 'Engine Parts', 'Brake System', 'Lubricants'];
 
-  const filteredPurchases = purchases.filter(purchase => {
+  const filteredPurchases = Array.isArray(purchases) ? purchases.filter(purchase => {
     const matchesSearch =
-      purchase.orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      purchase.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      purchase.items.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      purchase.category.toLowerCase().includes(searchTerm.toLowerCase());
+      (purchase.orderId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (purchase.supplierName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (purchase.items || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (purchase.category || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = filterStatus === 'all' || purchase.paymentStatus.toLowerCase() === filterStatus.toLowerCase();
+    const matchesStatus = filterStatus === 'all' || (purchase.paymentStatus || '').toLowerCase() === filterStatus.toLowerCase();
     const matchesCategory = filterCategory === 'all' || purchase.category === filterCategory;
 
     return matchesSearch && matchesStatus && matchesCategory;
-  });
+  }) : [];
 
   const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -171,6 +119,59 @@ export default function PurchaseList() {
     setViewingPurchase({ ...purchase });
     setShowViewModal(true);
   };
+
+  const handleDeletePurchase = async (purchaseId) => {
+    if (!window.confirm('Are you sure you want to delete this purchase?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://192.168.0.106:8080/api/v1/purchase/${purchaseId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Remove the deleted purchase from the state
+      setPurchases(Array.isArray(purchases) ? purchases.filter(p => p.id !== purchaseId) : []);
+      alert('Purchase deleted successfully!');
+    } catch (err) {
+      console.error('Error deleting purchase:', err);
+      alert('Failed to delete purchase. Please try again.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading purchases...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <svg className="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -383,7 +384,7 @@ export default function PurchaseList() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => { if (window.confirm('Are you sure you want to delete this purchase?')) setPurchases(purchases.filter(p => p.id !== purchase.id)); }}
+                          onClick={() => handleDeletePurchase(purchase.id)}
                           className="p-1.5 hover:bg-red-50 rounded"
                           title="Delete"
                         >

@@ -1,626 +1,372 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, Save, X, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Plus, X, Truck, Save, ArrowLeft
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function AddTrip() {
-   const navigate = useNavigate();
-   const { customerId } = useParams();
-   const location = useLocation();
-   const [customerIdState, setCustomerIdState] = useState(null);
-
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    // Basic fields
-    sl: '',
-    date: new Date().toISOString().split('T')[0],
-    cash: '',
-
-    // Trip details
-    destination: '',
-    totalRate: '',
+    load_point: '',
+    unload_point: '',
+    rent: '',
     advance: '',
-    due: '',
-    total: '',
-    vat: '',
-    profit: '',
-
-    // Vehicle information
-    vehicleNo: '',
-    dealerName: '',
-    doSi: '',
-    coU: '',
-
-    // Additional details
-    bike: '',
-    unloadCharge: '',
-    vehicleRateWithVatTax: '',
-    totalAmount: '',
-    extraCost: '',
-
-    // Status
-    status: 'Pending'
+    trip_cost: '',
+    diesel: '',
+    extra_cost: '',
+    diesel_taka: '',
+    pamp: '',
+    commission: '',
+    month: '',
+    vehicle_name: '',
+    vehicle_number: '',
+    driver_name: '',
+    driver_phone: ''
   });
 
-  const [errors, setErrors] = useState({});
-  // useEffect to read incoming customerId via navigation state, props, or URL params
-  useEffect(() => {
-    const customerIdFromState = location.state?.customerId;
-    const customerIdFromParams = customerId;
+  const API_BASE_URL = 'http://192.168.0.106:8080/api/v1';
 
-    const customerIdToUse = customerIdFromState || customerIdFromParams;
-
-    if (customerIdToUse) {
-      setCustomerIdState(customerIdToUse);
-      console.log('Customer ID set:', customerIdToUse);
-    } else {
-      console.log('No customer ID found');
-    }
-  }, [location.state, customerId]);
-console.log(customerIdState)
-console.log(customerId)
-  const handleChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-    if (!formData.sl.trim()) newErrors.sl = 'SL is required';
-    if (!formData.date) newErrors.date = 'Date is required';
-    if (!formData.cash) {
-      newErrors.cash = 'Cash is required';
-    } else if (isNaN(formData.cash) || Number(formData.cash) < 0) {
-      newErrors.cash = 'Invalid cash amount';
-    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/outside-trip`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          load_point: formData.load_point,
+          unload_point: formData.unload_point,
+          rent: parseFloat(formData.rent) || 0,
+          advance: parseFloat(formData.advance) || 0,
+          trip_cost: parseFloat(formData.trip_cost) || 0,
+          diesel: parseFloat(formData.diesel) || 0,
+          extra_cost: parseFloat(formData.extra_cost) || 0,
+          diesel_taka: parseFloat(formData.diesel_taka) || 0,
+          pamp: formData.pamp,
+          commission: parseFloat(formData.commission) || 0,
+          month: formData.month,
+          vehicle_name: formData.vehicle_name,
+          vehicle_number: formData.vehicle_number,
+          driver_name: formData.driver_name,
+          driver_phone: formData.driver_phone,
+        })
+      });
 
-    if (!formData.destination.trim()) newErrors.destination = 'Destination is required';
-    if (!formData.totalRate) {
-      newErrors.totalRate = 'Total rate is required';
-    } else if (isNaN(formData.totalRate) || Number(formData.totalRate) < 0) {
-      newErrors.totalRate = 'Invalid total rate';
-    }
-    if (!formData.advance) {
-      newErrors.advance = 'Advance is required';
-    } else if (isNaN(formData.advance) || Number(formData.advance) < 0) {
-      newErrors.advance = 'Invalid advance amount';
-    }
-    if (!formData.due) {
-      newErrors.due = 'Due amount is required';
-    } else if (isNaN(formData.due) || Number(formData.due) < 0) {
-      newErrors.due = 'Invalid due amount';
-    }
-    if (!formData.total) {
-      newErrors.total = 'Total is required';
-    } else if (isNaN(formData.total) || Number(formData.total) < 0) {
-      newErrors.total = 'Invalid total amount';
-    }
-    if (!formData.vat) {
-      newErrors.vat = 'VAT is required';
-    } else if (isNaN(formData.vat) || Number(formData.vat) < 0) {
-      newErrors.vat = 'Invalid VAT amount';
-    }
-    if (!formData.profit) {
-      newErrors.profit = 'Profit is required';
-    } else if (isNaN(formData.profit) || Number(formData.profit) < 0) {
-      newErrors.profit = 'Invalid profit amount';
-    }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-    if (!formData.vehicleNo.trim()) newErrors.vehicleNo = 'Vehicle number is required';
-    if (!formData.dealerName.trim()) newErrors.dealerName = 'Dealer name is required';
-    if (!formData.doSi.trim()) newErrors.doSi = 'DO (SI) is required';
-    if (!formData.coU.trim()) newErrors.coU = 'CO (U) is required';
-
-    if (!formData.bike) {
-      newErrors.bike = 'Bike quantity is required';
-    } else if (isNaN(formData.bike) || Number(formData.bike) < 0) {
-      newErrors.bike = 'Invalid bike quantity';
-    }
-    if (!formData.unloadCharge) {
-      newErrors.unloadCharge = 'Unload charge is required';
-    } else if (isNaN(formData.unloadCharge) || Number(formData.unloadCharge) < 0) {
-      newErrors.unloadCharge = 'Invalid unload charge';
-    }
-    if (!formData.vehicleRateWithVatTax) {
-      newErrors.vehicleRateWithVatTax = 'Vehicle rate is required';
-    } else if (isNaN(formData.vehicleRateWithVatTax) || Number(formData.vehicleRateWithVatTax) < 0) {
-      newErrors.vehicleRateWithVatTax = 'Invalid vehicle rate';
-    }
-    if (!formData.totalAmount) {
-      newErrors.totalAmount = 'Total amount is required';
-    } else if (isNaN(formData.totalAmount) || Number(formData.totalAmount) < 0) {
-      newErrors.totalAmount = 'Invalid total amount';
-    }
-    if (!formData.extraCost) {
-      newErrors.extraCost = 'Extra cost is required';
-    } else if (isNaN(formData.extraCost) || Number(formData.extraCost) < 0) {
-      newErrors.extraCost = 'Invalid extra cost';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = () => {
-    if (validateForm()) {
-      console.log('Trip added:', formData);
-      alert('Trip added successfully!');
+      const result = await response.json();
+      console.log('Trip added successfully:', result);
 
       // Reset form
       setFormData({
-        sl: '',
-        date: new Date().toISOString().split('T')[0],
-        cash: '',
-        destination: '',
-        totalRate: '',
+        load_point: '',
+        unload_point: '',
+        rent: '',
         advance: '',
-        due: '',
-        total: '',
-        vat: '',
-        profit: '',
-        vehicleNo: '',
-        dealerName: '',
-        doSi: '',
-        coU: '',
-        bike: '',
-        unloadCharge: '',
-        vehicleRateWithVatTax: '',
-        totalAmount: '',
-        extraCost: '',
-        status: 'Pending'
+        trip_cost: '',
+        diesel: '',
+        extra_cost: '',
+        diesel_taka: '',
+        pamp: '',
+        commission: '',
+        month: '',
+        vehicle_name: '',
+        vehicle_number: '',
+        driver_name: '',
+        driver_phone: ''
       });
-      setErrors({});
 
-      // Navigate back to trip list
-      navigate('/trips');
+      // Navigate back to trips list
+      navigate('/outsidetrip');
+    } catch (error) {
+      console.error('Error adding trip:', error);
+      alert('Failed to add trip. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white px-6 py-4 rounded-t-lg">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Add New Trip</h2>
-              <button
-                onClick={() => navigate('/trips')}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded-lg transition-colors"
-              >
-                <ArrowLeft size={18} />
-                Back to Trips
-              </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Enhanced Header */}
+      <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-800 px-4 sm:px-8 py-4 sm:py-6 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-xl">
+              <Plus className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-white text-3xl font-bold">Add Outside Trip</h1>
+              <p className="text-blue-100 text-sm">Create a new outside trip record</p>
+            </div>
+          </div>
+          <Link
+            to="/outsidetrip"
+            className="flex items-center gap-3 px-6 py-3 bg-white/20 text-white rounded-xl hover:bg-white/30 transition-all transform hover:scale-105 font-semibold shadow-lg"
+          >
+            <ArrowLeft size={20} />
+            <span>Back to Trips</span>
+          </Link>
+        </div>
+      </div>
+
+      <div className="px-4 sm:px-8 py-4 sm:py-8">
+        {/* Enhanced Main Content Card */}
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+          {/* Enhanced Action Bar */}
+          <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-4 sm:p-8 border-b border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-100 rounded-xl">
+                <Truck className="w-8 h-8 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">Trip Information</h2>
+                <p className="text-gray-600">Fill in the details for the new outside trip</p>
+              </div>
             </div>
           </div>
 
-          {/* Form Body */}
-          <div className="p-8">
-            {/* Basic Information Section */}
+          <form onSubmit={handleSubmit} className="p-4 sm:p-8">
+            {/* Trip Information Section */}
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Trip Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    SL <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Load Point *</label>
                   <input
                     type="text"
-                    name="sl"
-                    value={formData.sl}
-                    onChange={handleChange}
-                    placeholder="Enter SL"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.sl ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    name="load_point"
+                    value={formData.load_point}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Enter load point"
                   />
-                  {errors.sl && (
-                    <p className="text-red-500 text-xs mt-1">{errors.sl}</p>
-                  )}
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.date ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.date && (
-                    <p className="text-red-500 text-xs mt-1">{errors.date}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cash <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="cash"
-                    value={formData.cash}
-                    onChange={handleChange}
-                    placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.cash ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.cash && (
-                    <p className="text-red-500 text-xs mt-1">{errors.cash}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Trip Details Section */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b">Trip Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Destination <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Unload Point *</label>
                   <input
                     type="text"
-                    name="destination"
-                    value={formData.destination}
-                    onChange={handleChange}
-                    placeholder="Enter destination"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.destination ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    name="unload_point"
+                    value={formData.unload_point}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Enter unload point"
                   />
-                  {errors.destination && (
-                    <p className="text-red-500 text-xs mt-1">{errors.destination}</p>
-                  )}
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Total Rate <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Rent (৳) *</label>
                   <input
                     type="number"
-                    name="totalRate"
-                    value={formData.totalRate}
-                    onChange={handleChange}
+                    name="rent"
+                    value={formData.rent}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.totalRate ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    min="0"
+                    step="0.01"
                   />
-                  {errors.totalRate && (
-                    <p className="text-red-500 text-xs mt-1">{errors.totalRate}</p>
-                  )}
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Advance <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Advance (৳)</label>
                   <input
                     type="number"
                     name="advance"
                     value={formData.advance}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.advance ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    min="0"
+                    step="0.01"
                   />
-                  {errors.advance && (
-                    <p className="text-red-500 text-xs mt-1">{errors.advance}</p>
-                  )}
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Due <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Trip Cost (৳)</label>
                   <input
                     type="number"
-                    name="due"
-                    value={formData.due}
-                    onChange={handleChange}
+                    name="trip_cost"
+                    value={formData.trip_cost}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.due ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    min="0"
+                    step="0.01"
                   />
-                  {errors.due && (
-                    <p className="text-red-500 text-xs mt-1">{errors.due}</p>
-                  )}
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Total <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Diesel</label>
                   <input
                     type="number"
-                    name="total"
-                    value={formData.total}
-                    onChange={handleChange}
+                    name="diesel"
+                    value={formData.diesel}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.total ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    min="0"
+                    step="0.01"
                   />
-                  {errors.total && (
-                    <p className="text-red-500 text-xs mt-1">{errors.total}</p>
-                  )}
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    20% VAT <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Extra Cost (৳)</label>
                   <input
                     type="number"
-                    name="vat"
-                    value={formData.vat}
-                    onChange={handleChange}
+                    name="extra_cost"
+                    value={formData.extra_cost}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.vat ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    min="0"
+                    step="0.01"
                   />
-                  {errors.vat && (
-                    <p className="text-red-500 text-xs mt-1">{errors.vat}</p>
-                  )}
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Profit <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Diesel Taka (৳)</label>
                   <input
                     type="number"
-                    name="profit"
-                    value={formData.profit}
-                    onChange={handleChange}
+                    name="diesel_taka"
+                    value={formData.diesel_taka}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.profit ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    min="0"
+                    step="0.01"
                   />
-                  {errors.profit && (
-                    <p className="text-red-500 text-xs mt-1">{errors.profit}</p>
-                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Pamp</label>
+                  <input
+                    type="text"
+                    name="pamp"
+                    value={formData.pamp}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Enter pamp"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Commission (৳)</label>
+                  <input
+                    type="number"
+                    name="commission"
+                    value={formData.commission}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="0"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Month *</label>
+                  <input
+                    type="text"
+                    name="month"
+                    value={formData.month}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="e.g., January 2024"
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Vehicle Information Section */}
+            {/* Vehicle & Driver Information Section */}
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b">Vehicle Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vehicle No <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="vehicleNo"
-                    value={formData.vehicleNo}
-                    onChange={handleChange}
-                    placeholder="DHK-METRO-1234"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.vehicleNo ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.vehicleNo && (
-                    <p className="text-red-500 text-xs mt-1">{errors.vehicleNo}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Dealer Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="dealerName"
-                    value={formData.dealerName}
-                    onChange={handleChange}
-                    placeholder="Enter dealer name"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.dealerName ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.dealerName && (
-                    <p className="text-red-500 text-xs mt-1">{errors.dealerName}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    DO (SI) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="doSi"
-                    value={formData.doSi}
-                    onChange={handleChange}
-                    placeholder="DO-2024-001"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.doSi ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.doSi && (
-                    <p className="text-red-500 text-xs mt-1">{errors.doSi}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    CO (U) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="coU"
-                    value={formData.coU}
-                    onChange={handleChange}
-                    placeholder="CO-2024-001"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.coU ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.coU && (
-                    <p className="text-red-500 text-xs mt-1">{errors.coU}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Bike <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="bike"
-                    value={formData.bike}
-                    onChange={handleChange}
-                    placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.bike ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.bike && (
-                    <p className="text-red-500 text-xs mt-1">{errors.bike}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Unload Charge <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="unloadCharge"
-                    value={formData.unloadCharge}
-                    onChange={handleChange}
-                    placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.unloadCharge ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.unloadCharge && (
-                    <p className="text-red-500 text-xs mt-1">{errors.unloadCharge}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vehicle Rate (VAT + Tax) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="vehicleRateWithVatTax"
-                    value={formData.vehicleRateWithVatTax}
-                    onChange={handleChange}
-                    placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.vehicleRateWithVatTax ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.vehicleRateWithVatTax && (
-                    <p className="text-red-500 text-xs mt-1">{errors.vehicleRateWithVatTax}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Total Amount <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="totalAmount"
-                    value={formData.totalAmount}
-                    onChange={handleChange}
-                    placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.totalAmount ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.totalAmount && (
-                    <p className="text-red-500 text-xs mt-1">{errors.totalAmount}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Extra Cost <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="extraCost"
-                    value={formData.extraCost}
-                    onChange={handleChange}
-                    placeholder="0"
-                    className={`w-full px-4 py-2.5 border ${
-                      errors.extraCost ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                  {errors.extraCost && (
-                    <p className="text-red-500 text-xs mt-1">{errors.extraCost}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Status Section */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b">Status</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Vehicle & Driver Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Completed">Completed</option>
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Vehicle Name *</label>
+                  <input
+                    type="text"
+                    name="vehicle_name"
+                    value={formData.vehicle_name}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Enter vehicle name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Vehicle Number *</label>
+                  <input
+                    type="text"
+                    name="vehicle_number"
+                    value={formData.vehicle_number}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Enter vehicle number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Driver Name *</label>
+                  <input
+                    type="text"
+                    name="driver_name"
+                    value={formData.driver_name}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Enter driver name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Driver Phone</label>
+                  <input
+                    type="text"
+                    name="driver_phone"
+                    value={formData.driver_phone}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Enter driver phone"
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Buttons */}
-            <div className="flex gap-3 pt-6 border-t">
+            <div className="flex gap-3">
               <button
-                onClick={handleSubmit}
-                className="px-8 py-3 bg-gradient-to-r from-blue-900 to-blue-800 text-white font-medium rounded-lg hover:from-blue-800 hover:to-blue-700 transition-all shadow-sm flex items-center gap-2"
+                type="submit"
+                disabled={loading}
+                className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-900 to-blue-800 text-white rounded-lg hover:from-blue-800 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Save size={18} />
-                Save Trip
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={20} />
+                    <span>Save Trip</span>
+                  </>
+                )}
               </button>
-              <button
-                onClick={() => navigate('/trips')}
-                className="px-8 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center gap-2"
+              <Link
+                to="/outsidetrip"
+                className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
-                <X size={18} />
                 Cancel
-              </button>
+              </Link>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>

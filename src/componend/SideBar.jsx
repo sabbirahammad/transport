@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { NavLink } from "react-router-dom";
-import { 
+import {
   LayoutDashboard, Users, ShoppingCart, Package, FileText, BarChart3,
   Settings, Bell, Mail, Calendar, Image, Video, Music, File,
   CreditCard, Tag, Truck, Store, UserCircle, Lock, Database,
   Layers, Code, Palette, Globe, MessageSquare, Heart, Star,
   TrendingUp, DollarSign, Search, ChevronDown, ChevronRight,
-  Menu, X, LogOut, HelpCircle
+  Menu, X, LogOut, HelpCircle, Wrench, Calculator
 } from 'lucide-react';
 
 export default function Deshboard() {
@@ -19,38 +19,41 @@ export default function Deshboard() {
     {
       id: 'users',
       label: 'Fleet Management',
-      icon: Users,
+      icon: Truck,
       submenu: [
         { id: 'Customer', label: 'Customer', icon: Users, path: '/customerproduct' },
-        { id: 'Vehicle', label: 'Vehicle Management', icon: Users, path: '/vehicle' },
+         { id: 'Outside', label: 'Outside Trip', icon: Truck, path: '/vehicle' },
+        { id: 'Vehicle', label: 'Vehicle Management', icon: Truck, path: '/vehicle' },
         { id: 'Premiafix', label: 'Premiafix', icon: Truck, path: '/brand/premiaflix' },
         { id: 'Mahindra', label: 'Mahindra', icon: Truck, path: '/mahindra' },
         { id: 'Hatim', label: 'Hatim', icon: Truck, path: '/brand/hatim' },
+        { id: 'trip', label: 'Trip Expense', icon: Truck, path: '/tripexpense' },
       ]
     },
     {
       id: 'hr',
       label: 'HR Management',
-      icon: ShoppingCart,
+      icon: Users,
       submenu: [
-        { id: 'imployee', label: 'Imployee List', icon: Package, path: '/imployee' },
-        { id: 'driver', label: 'Driver List', icon: ShoppingCart, path: '/driver' },
-        { id: 'helper', label: 'Helper List', icon: Tag, path: '/helper' },
-        { id: 'mechanic', label: 'Mechanic', icon: Database, path: '/mechanic' },
-        { id: 'accountant', label: 'Accountant', icon: Database, path: '/addtrip' },
-        { id: 'manager', label: 'Manager List', icon: Database, path: '/customers' },
+        { id: 'imployee', label: 'Imployee List', icon: Users, path: '/employee' },
+        { id: 'driver', label: 'Driver List', icon: Users, path: '/driver' },
+        { id: 'helper', label: 'Helper List', icon: Users, path: '/helper' },
+        { id: 'mechanic', label: 'Mechanic', icon: Wrench, path: '/mechanic' },
+        { id: 'accountant', label: 'Accountant', icon: Calculator, path: '/addtrip' },
+        { id: 'manager', label: 'Manager List', icon: Users, path: '/customers' },
       ]
     },
     {
       id: 'purchase',
       label: 'Purchase Management',
-      icon: FileText,
-      submenu: [
-        { id: 'purchaselist', label: 'Purchase List', icon: FileText, path: '/purchase' },
-        { id: 'pages', label: 'Pages', icon: File, path: '/pages' },
-        { id: 'media', label: 'Media Library', icon: Image, path: '/media' },
-        { id: 'comments', label: 'Comments', icon: MessageSquare, path: '/comments' }
-      ]
+      icon: ShoppingCart,
+      // submenu: [
+      //   { id: 'purchaselist', label: 'Purchase List', icon: FileText, path: '/purchase' },
+      //   { id: 'pages', label: 'Pages', icon: File, path: '/pages' },
+      //   { id: 'media', label: 'Media Library', icon: Image, path: '/media' },
+      //   { id: 'comments', label: 'Comments', icon: MessageSquare, path: '/comments' }
+      // ]
+      path:'/purchase'
     },
     {
       id: 'customer',
@@ -58,63 +61,65 @@ export default function Deshboard() {
       icon: Users,
       submenu: [
         { id: 'customer-list', label: 'Customer List', icon: Users, path: '/customer' },
-        { id: 'Pricing', label: 'Customer Pricing', icon: BarChart3, path: '/customer-pricing' },
-        { id: 'Dealer', label: 'Dealer List', icon: DollarSign, path: '/dealer' }
+        { id: 'Pricing', label: 'Customer Pricing', icon: DollarSign, path: '/customer-pricing' },
+        { id: 'Dealer', label: 'Dealer List', icon: Users, path: '/dealer' },
       ]
     },
+    // {
+    //   id: 'analytics',
+    //   label: 'Analytics',
+    //   icon: BarChart3,
+    //   submenu: [
+    //     { id: 'reports', label: 'Reports', icon: BarChart3, path: '/reports' },
+    //     { id: 'traffic', label: 'Traffic', icon: TrendingUp, path: '/traffic' },
+    //     { id: 'revenue', label: 'Revenue', icon: DollarSign, path: '/revenue' }
+    //   ]
+    // },
     {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: BarChart3,
-      submenu: [
-        { id: 'reports', label: 'Reports', icon: BarChart3, path: '/reports' },
-        { id: 'traffic', label: 'Traffic', icon: TrendingUp, path: '/traffic' },
-        { id: 'revenue', label: 'Revenue', icon: DollarSign, path: '/revenue' }
-      ]
+      id: 'Profit Zone',
+      label: 'Profit Zone',
+      icon: DollarSign,
+    path:'/profit'
     },
-    {
-      id: 'communication',
-      label: 'Communication',
-      icon: Mail,
-      submenu: [
-        { id: 'messages', label: 'Messages', icon: Mail, path: '/messages' },
-        { id: 'notifications', label: 'Notifications', icon: Bell, path: '/notifications' },
-        { id: 'chat', label: 'Live Chat', icon: MessageSquare, path: '/chat' }
-      ]
+     {
+      id: 'oun',
+      label: 'Oun Vehicle',
+      icon: DollarSign,
+    path:'/ounvehicle'
     },
-    { id: 'calendar', label: 'Calendar', icon: Calendar, path: '/calendar' },
-    {
-      id: 'finance',
-      label: 'Finance',
-      icon: CreditCard,
-      submenu: [
-        { id: 'payments', label: 'Payments', icon: CreditCard, path: '/payments' },
-        { id: 'invoices', label: 'Invoices', icon: FileText, path: '/invoices' },
-        { id: 'transactions', label: 'Transactions', icon: DollarSign, path: '/transactions' }
-      ]
-    },
-    {
-      id: 'shipping',
-      label: 'Shipping',
-      icon: Truck,
-      submenu: [
-        { id: 'shipments', label: 'Shipments', icon: Truck, path: '/shipments' },
-        { id: 'carriers', label: 'Carriers', icon: Store, path: '/carriers' }
-      ]
-    },
-    {
-      id: 'design',
-      label: 'Design',
-      icon: Palette,
-      submenu: [
-        { id: 'themes', label: 'Themes', icon: Palette, path: '/themes' },
-        { id: 'templates', label: 'Templates', icon: Layers, path: '/templates' },
-        { id: 'customization', label: 'Customization', icon: Code, path: '/customization' }
-      ]
-    },
+    // { id: 'calendar', label: 'Calendar', icon: Calendar, path: '/calendar' },
+    // {
+    //   id: 'finance',
+    //   label: 'Finance',
+    //   icon: CreditCard,
+    //   submenu: [
+    //     { id: 'payments', label: 'Payments', icon: CreditCard, path: '/payments' },
+    //     { id: 'invoices', label: 'Invoices', icon: FileText, path: '/invoices' },
+    //     { id: 'transactions', label: 'Transactions', icon: DollarSign, path: '/transactions' }
+    //   ]
+    // },
+    // {
+    //   id: 'shipping',
+    //   label: 'Shipping',
+    //   icon: Truck,
+    //   submenu: [
+    //     { id: 'shipments', label: 'Shipments', icon: Truck, path: '/shipments' },
+    //     { id: 'carriers', label: 'Carriers', icon: Store, path: '/carriers' }
+    //   ]
+    // },
+    // {
+    //   id: 'design',
+    //   label: 'Design',
+    //   icon: Palette,
+    //   submenu: [
+    //     { id: 'themes', label: 'Themes', icon: Palette, path: '/themes' },
+    //     { id: 'templates', label: 'Templates', icon: Layers, path: '/templates' },
+    //     { id: 'customization', label: 'Customization', icon: Code, path: '/customization' }
+    //   ]
+    // },
     { id: 'reviews', label: 'Reviews & Ratings', icon: Star, path: '/reviews' },
     { id: 'favorites', label: 'Favorites', icon: Heart, path: '/favorites' },
-    { id: 'seo', label: 'SEO Tools', icon: Globe, path: '/seo' },
+    { id: 'seo', label: 'SEO Tools', icon: Search, path: '/seo' },
     {
       id: 'settings',
       label: 'Settings',

@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, User, Mail, Calendar, Briefcase, Phone, CheckCircle, Upload, MapPin, CreditCard, Building, Heart, IdCard, DollarSign, Users } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
+const API_BASE_URL = 'http://192.168.0.106:8080/api/v1/employee';
 
 export default function AddEmployee() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { employee, isEdit } = location.state || {};
+
   const [formData, setFormData] = useState({
     // Basic Information
     fullName: '',
@@ -19,6 +25,7 @@ export default function AddEmployee() {
     joinDate: '',
     salary: '',
     paymentMethod: '',
+    role: '',
 
     // Personal Information
     nid: '',
@@ -33,6 +40,38 @@ export default function AddEmployee() {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [notification, setNotification] = useState(null);
+
+  // Populate form data if editing
+  useEffect(() => {
+    if (isEdit && employee) {
+      setFormData({
+        fullName: employee.fullName || '',
+        email: employee.email || '',
+        mobile: employee.mobile || '',
+        birthDate: employee.birthDate || '',
+        gender: employee.gender || '',
+        bloodGroup: employee.bloodGroup || '',
+        designation: employee.designation || '',
+        employmentType: employee.employmentType || '',
+        branchName: employee.branchName || '',
+        joinDate: employee.joinDate || '',
+        salary: employee.salary || '',
+        paymentMethod: employee.paymentMethod || '',
+        role: employee.role || '',
+        nid: employee.nid || '',
+        address: employee.address || '',
+        status: employee.status || 'Active',
+        image: employee.image || `https://i.pravatar.cc/100?img=${Math.floor(Math.random() * 50) + 1}`,
+        imageFile: null
+      });
+    }
+  }, [isEdit, employee]);
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -131,47 +170,64 @@ export default function AddEmployee() {
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const employeeData = {
+        full_name: formData.fullName,
+        email: formData.email,
+        mobile: formData.mobile,
+        birth_date: formData.birthDate,
+        gender: formData.gender,
+        blood_group: formData.bloodGroup,
+        designation: formData.designation,
+        employment_type: formData.employmentType,
+        branch_name: formData.branchName,
+        join_date: formData.joinDate,
+        salary: parseFloat(formData.salary),
+        payment_method: formData.paymentMethod,
+        nid: formData.nid,
+        address: formData.address,
+        status: formData.status,
+        image: formData.image,
+        role: formData.role
+      };
 
-      // In a real app, you would send this data to your backend
-      console.log('New employee data:', formData);
-
-      setIsSuccess(true);
-
-      // Reset form after successful submission
-      setTimeout(() => {
-        setFormData({
-          // Basic Information
-          fullName: '',
-          email: '',
-          mobile: '',
-          birthDate: '',
-          gender: '',
-          bloodGroup: '',
-
-          // Employment Information
-          designation: '',
-          employmentType: '',
-          branchName: '',
-          joinDate: '',
-          salary: '',
-          paymentMethod: '',
-
-          // Personal Information
-          nid: '',
-          address: '',
-
-          // System Information
-          status: 'Active',
-          image: `https://i.pravatar.cc/100?img=${Math.floor(Math.random() * 50) + 1}`,
-          imageFile: null
+      let response;
+      if (isEdit) {
+        // Update existing employee
+        response = await fetch(`${API_BASE_URL}/${employee.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(employeeData),
         });
-        setIsSuccess(false);
-      }, 2000);
+      } else {
+        // Add new employee
+        response = await fetch(API_BASE_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(employeeData),
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${isEdit ? 'update' : 'add'} employee`);
+      }
+
+      const result = await response.json();
+      console.log(`${isEdit ? 'Updated' : 'Added'} employee:`, result);
+
+      showNotification(`Employee ${isEdit ? 'updated' : 'added'} successfully`, 'success');
+
+      // Redirect to employee list after success
+      setTimeout(() => {
+        navigate('/employee');
+      }, 1500);
 
     } catch (error) {
-      console.error('Error adding employee:', error);
+      console.error(`Error ${isEdit ? 'updating' : 'adding'} employee:`, error);
+      showNotification(`Failed to ${isEdit ? 'update' : 'add'} employee`, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -195,6 +251,7 @@ export default function AddEmployee() {
       joinDate: '',
       salary: '',
       paymentMethod: '',
+      role: '',
 
       // Personal Information
       nid: '',
@@ -208,36 +265,27 @@ export default function AddEmployee() {
     setErrors({});
   };
 
-  if (isSuccess) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-          <div className="mb-6">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Employee Added Successfully!</h2>
-            <p className="text-gray-600">The new employee has been added to the system.</p>
-          </div>
-          <div className="space-y-3">
-            <Link
-              to="/employee"
-              className="w-full block text-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Back to Employee List
-            </Link>
-            <button
-              onClick={() => setIsSuccess(false)}
-              className="w-full block text-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Add Another Employee
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Notification */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg ${
+          notification.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {notification.type === 'success' ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              )}
+            </svg>
+            <span>{notification.message}</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-900 to-blue-800 px-8 py-4 shadow-lg">
         <div className="flex items-center gap-4">
@@ -249,7 +297,7 @@ export default function AddEmployee() {
             <span>Back to Employee List</span>
           </Link>
           <div className="h-6 w-px bg-blue-300"></div>
-          <h1 className="text-white text-xl font-semibold">Add New Employee</h1>
+          <h1 className="text-white text-xl font-semibold">{isEdit ? 'Edit Employee' : 'Add New Employee'}</h1>
         </div>
       </div>
 
@@ -641,6 +689,26 @@ export default function AddEmployee() {
                     <p className="mt-1 text-sm text-red-600">{errors.paymentMethod}</p>
                   )}
                 </div>
+
+                {/* Role */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Role
+                  </label>
+                  <input
+                    type="text"
+                    name="role"
+                    value={formData.role}
+                    onChange={handleInputChange}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.role ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Enter role"
+                  />
+                  {errors.role && (
+                    <p className="mt-1 text-sm text-red-600">{errors.role}</p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -669,27 +737,27 @@ export default function AddEmployee() {
 
             {/* Form Actions */}
             <div className="flex gap-4 mt-8 pt-6 border-t border-gray-200">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-lg transition-colors ${
-                  isSubmitting
-                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Adding Employee...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle size={18} />
-                    <span>Add Employee</span>
-                  </>
-                )}
-              </button>
+             <button
+               type="submit"
+               disabled={isSubmitting}
+               className={`flex items-center gap-2 px-6 py-2.5 rounded-lg transition-colors ${
+                 isSubmitting
+                   ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                   : 'bg-blue-600 text-white hover:bg-blue-700'
+               }`}
+             >
+               {isSubmitting ? (
+                 <>
+                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                   <span>{isEdit ? 'Updating Employee...' : 'Adding Employee...'}</span>
+                 </>
+               ) : (
+                 <>
+                   <CheckCircle size={18} />
+                   <span>{isEdit ? 'Update Employee' : 'Add Employee'}</span>
+                 </>
+               )}
+             </button>
 
               <button
                 type="button"

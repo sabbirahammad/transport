@@ -5,28 +5,41 @@ import {
   AlertCircle, TrendingUp, User, Package, Settings
 } from 'lucide-react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useProduct } from '../../context/ProductContext';
 
 export default function AddTrip() {
     const { customerId: paramCustomerId, productId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-   const [customerId, setCustomerId] = useState(null);
-   const [formData, setFormData] = useState({});
-   const [selectedFields, setSelectedFields] = useState([]);
-   const [loading, setLoading] = useState(true);
-   const [errors, setErrors] = useState({});
-   const [isSubmitting, setIsSubmitting] = useState(false);
-   const [isSuccess, setIsSuccess] = useState(false);
+    const { apiStates } = useProduct();
+    const [customerId, setCustomerId] = useState(null);
+    const [formData, setFormData] = useState({});
+    const [selectedFields, setSelectedFields] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [errors, setErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
+    // Vehicle field mapping for data keys
+    const vehicleFieldMapping = {
+      vehicleName: 'vehicle_name',
+      vehicleNo: 'vehicle_no',
+      driverName: 'driver_name',
+      truckSize: 'size',
+      driverMobile: 'driver_contact'
+    };
+    // Get data from navigation state
+    const stateProductName = location.state?.productName;
+    const stateCustomer = location.state?.selectedCustomer;
+    const stateCustomerId = location.state?.customerId;
+    const customerName= location.state?.customerName;
 
-   // Get data from navigation state
-   const stateProductName = location.state?.productName;
-   const stateCustomer = location.state?.selectedCustomer;
-   const stateCustomerId = location.state?.customerId;
+ 
 
   // Set customerId state when component mounts or location state changes
   useEffect(() => {
     // Try multiple sources for customerId: navigation state first, then URL params
     const customerIdToUse = stateCustomerId || stateCustomer?.id || paramCustomerId;
+  
 
     if (customerIdToUse) {
       setCustomerId(customerIdToUse);
@@ -34,11 +47,13 @@ export default function AddTrip() {
     } else {
       console.warn('No customer ID found in navigation state or URL params');
     }
-  }, [stateCustomerId, stateCustomer, paramCustomerId]);
+
+  }, [stateCustomerId, stateCustomer, paramCustomerId,customerName]);
 
   const API_BASE_URL = 'http://192.168.0.106:8080/api/v1';
 console.log(productId)
 console.log(stateCustomerId)
+console.log(customerName)
   // All possible fields definition (matching CustomTripList)
   const allFields = [
     { key: 'id', label: 'ID' },
@@ -150,6 +165,7 @@ console.log(stateCustomerId)
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -206,19 +222,23 @@ console.log(stateCustomerId)
       // Prepare the data for submission - format according to backend expectations
       const payload = {};
 
+      // Function to convert camelCase to snake_case
+      const toSnakeCase = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+
       // Always include product_id as number
       payload.product_id = Number(productId);
 
-      // Map form fields to backend expected format
+      // Map form fields to backend expected format (snake_case)
       validSelectedFields.forEach(field => {
         const value = formData[field.key];
+        const apiKey = toSnakeCase(field.key);
         if (field.type === 'number' && value !== undefined && value !== '') {
-          payload[field.key] = Number(value);
+          payload[apiKey] = Number(value);
         } else if (value !== undefined && value !== '') {
-          payload[field.key] = value;
+          payload[apiKey] = value;
         } else {
           // Set optional fields to null if empty
-          payload[field.key] = null;
+          payload[apiKey] = null;
         }
       });
 
@@ -287,7 +307,42 @@ console.log(stateCustomer)
     setFormData({});
     setErrors({});
   };
-console.log(customerId)
+
+  // Helper function to get unique values for vehicle fields
+  const getVehicleFieldOptions = (fieldKey) => {
+    const vehicles = apiStates.vehicle?.data?.data || [];
+    const dataKey = vehicleFieldMapping[fieldKey];
+    if (!dataKey) return [];
+
+    const uniqueValues = [...new Set(vehicles.map(vehicle => vehicle[dataKey]).filter(Boolean))];
+    return uniqueValues.sort();
+  };
+
+  // Handler for vehicle field dropdown changes
+  const handleVehicleFieldChange = (fieldKey, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldKey]: value
+    }));
+
+    // Clear error when user selects
+    if (errors[fieldKey]) {
+      setErrors(prev => ({
+        ...prev,
+        [fieldKey]: ''
+      }));
+    }
+
+    // Clear submit error when user selects
+    if (errors.submit) {
+      setErrors(prev => ({
+        ...prev,
+        submit: ''
+      }));
+    }
+  };
+
+
   const getIconForField = (fieldKey) => {
     if (fieldKey.includes('amount') || fieldKey.includes('rate') || fieldKey.includes('cost') || fieldKey.includes('advance') || fieldKey.includes('due') || fieldKey.includes('total') || fieldKey.includes('profit') || fieldKey.includes('cash') || fieldKey.includes('fuel') || fieldKey.includes('unitPrice')) {
       return <DollarSign className="inline w-4 h-4 mr-1" />;
@@ -384,7 +439,7 @@ console.log(customerId)
                 <h2 className="text-xl font-bold text-gray-800">Trip Information</h2>
                 <p className="text-gray-600">Fill in the details below to add a new trip record</p>
                 {stateCustomer && (
-                  <p className="text-sm text-gray-500 mt-1">Customer: {stateCustomer.name}</p>
+                  <p className="text-sm text-gray-500 mt-1">Customer: {customerName}</p>
                 )}
                 {stateProductName && (
                   <p className="text-sm text-gray-500">Product: {stateProductName}</p>
@@ -441,6 +496,22 @@ console.log(customerId)
                           rows="3"
                           placeholder={`Enter ${field.label.toLowerCase()}`}
                         />
+                      ) : ['vehicleName', 'vehicleNo', 'driverName', 'truckSize', 'driverMobile'].includes(field.key) ? (
+                        <select
+                          name={field.key}
+                          value={formData[field.key] || ''}
+                          onChange={(e) => handleVehicleFieldChange(field.key, e.target.value)}
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            errors[field.key] ? 'border-red-300' : 'border-gray-300'
+                          } bg-white`}
+                        >
+                          <option value="">Select {field.label}</option>
+                          {getVehicleFieldOptions(field.key).map((option, index) => (
+                            <option key={index} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
                       ) : (
                         <input
                           type={field.type || 'text'}

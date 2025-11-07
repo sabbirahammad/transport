@@ -186,6 +186,10 @@ export default function AddPurchase() {
           billImageFile: null
         });
         setIsSuccess(false);
+
+        // Refresh the purchase list by triggering a page reload or navigation
+        // Since we can't directly access the parent component, we'll use window.location
+        window.location.href = '/purchase';
       }, 2000);
 
     } catch (error) {

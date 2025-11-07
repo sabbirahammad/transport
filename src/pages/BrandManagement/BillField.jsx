@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Truck, MapPin, DollarSign, Search, X, CheckCircle, Loader2, AlertCircle, Package, FileText, Calendar } from 'lucide-react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useProduct } from '../../context/ProductContext';
 
 // API base URL
 const API_BASE_URL = 'http://192.168.0.106:8080/api/v1';
@@ -9,6 +10,7 @@ const API_BASE_URL = 'http://192.168.0.106:8080/api/v1';
 export default function BillField() {
   const { id } = useParams(); // This is customerId from URL
   const location = useLocation();
+  const { apiStates } = useProduct();
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [productName, setProductName] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -19,7 +21,14 @@ export default function BillField() {
   const [saving, setSaving] = useState(false);
   const [fieldDefinitions, setFieldDefinitions] = useState({});
   const [productId, setProductId] = useState(null);
-  const [chack, setchack] = useState()
+  const [chack, setchack] = useState();
+
+  // Vehicle autocomplete states
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [vehicleName, setVehicleName] = useState('');
+  const [driverName, setDriverName] = useState('');
+  const [driverPhone, setDriverPhone] = useState('');
+
   const navigate = useNavigate();
 
   // Fetch field selections on mount
@@ -155,6 +164,69 @@ console.log(chack)
     vehicle: Truck,
     financial: DollarSign,
     additional: Calendar
+  };
+
+  // Get vehicle data from context
+  const vehicleData = apiStates.vehicle.data || [];
+  const vehicleSuggestions = Array.isArray(vehicleData) ? vehicleData : (vehicleData.data || []);
+
+  // Reusable AutocompleteInput component
+  const AutocompleteInput = ({ label, value, onChange, suggestions, placeholder, icon: Icon }) => {
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [filteredSuggestions, setFilteredSuggestions] = useState([]);
+
+    useEffect(() => {
+      if (value && suggestions.length > 0) {
+        const filtered = suggestions.filter(item =>
+          item.toLowerCase().includes(value.toLowerCase())
+        );
+        setFilteredSuggestions(filtered);
+      } else {
+        setFilteredSuggestions(suggestions);
+      }
+    }, [value, suggestions]);
+
+    const handleSelect = (selectedValue) => {
+      onChange(selectedValue);
+      setShowSuggestions(false);
+    };
+
+    return (
+      <div className="relative">
+        <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+        <div className="relative">
+          {Icon && <Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />}
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            placeholder={placeholder}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+          />
+        </div>
+        {showSuggestions && filteredSuggestions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+          >
+            {filteredSuggestions.map((suggestion, index) => (
+              <motion.div
+                key={index}
+                onClick={() => handleSelect(suggestion)}
+                className="px-4 py-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                whileHover={{ backgroundColor: '#f0f9ff' }}
+              >
+                <span className="text-gray-700">{suggestion}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </div>
+    );
   };
 
   // Complete field definitions based on the API structure
